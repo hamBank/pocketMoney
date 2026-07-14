@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 
 from ..database import get_session
+from ..ledger import user_read
 from ..models import User, UserInvite, UserRead, UserRole, UserUpdate
 from ..permissions import require_admin_role
 
@@ -13,7 +14,8 @@ def list_users(
     session: Session = Depends(get_session),
     _admin: User = Depends(require_admin_role),
 ):
-    return session.exec(select(User).order_by(User.id)).all()
+    users = session.exec(select(User).order_by(User.id)).all()
+    return [user_read(session, u) for u in users]
 
 
 @router.post("/invite", response_model=UserRead, status_code=status.HTTP_201_CREATED)
@@ -30,7 +32,7 @@ def invite_user(
     session.add(user)
     session.commit()
     session.refresh(user)
-    return user
+    return user_read(session, user)
 
 
 @router.patch("/{user_id}", response_model=UserRead)
@@ -55,4 +57,4 @@ def update_user(
     session.add(user)
     session.commit()
     session.refresh(user)
-    return user
+    return user_read(session, user)
