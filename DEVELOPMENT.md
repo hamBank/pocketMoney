@@ -49,6 +49,7 @@ admin — never set in production.
 | `ALLOWED_EMAILS` | — | comma-separated bootstrap allowlist (first admin) |
 | `DEPLOY_SECRET` | — | HMAC key for `/deploy` webhook |
 | `CURRENCY_SYMBOL` | `$` | display only |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` | — | admin daily digest email; unset locally = digest logs to stdout |
 
 ## Tests
 

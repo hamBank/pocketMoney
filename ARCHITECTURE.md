@@ -12,11 +12,14 @@ A single-family pocket money / chore web app. A FastAPI + SQL backend serves a
 REST API **and** the compiled React SPA from the same origin.
 
 Administrators (parents) create **chores** — recurring items with a schedule, a
-monetary value, and other configuration. Users (kids) **claim** that a chore is
-done; the claim routes to an administrator for approval. An approved claim
-credits money into the user's **account** via an append-only transaction
-ledger, which also records withdrawals (money paid out / spent), penalties
-(negative claims), and manual balance adjustments.
+monetary value, a claim mode (`per_user` / `shared` / `open`), and other
+configuration. Users (kids) **claim** that a chore is done; the claim routes to
+an administrator for approval. An approved claim credits money into the user's
+**account** via an append-only transaction ledger, which also records
+withdrawals (money paid out / spent), penalties (negative claims), manual
+balance adjustments, and an optional per-user weekly allowance applied every
+Monday. Kids see a "chores due" list on their screen; admins get an in-app
+approval queue plus a once-per-day email digest of pending claims.
 
 See [SPEC.md](SPEC.md) for the full behavioural spec, including the audit
 fields every claim must record.
@@ -48,8 +51,8 @@ backend/
   auth.py            # JWT issue/verify, Google token verification,
                      # AUTH_ENABLED flag, email allowlist
   permissions.py     # require_admin_role / require_user_role dependencies
-  schedule.py        # chore recurrence: due-window calculation
-  notifications.py   # notification triggers: chore-due window, weekly summary
+  schedule.py        # chore recurrence + claimability (per_user/shared/open modes)
+  emails.py          # SMTP send + admin daily-digest composition
   routers/
     auth_router.py   # /auth/google, /auth/me, /auth/config
     chores.py        # /chores CRUD (admin) + listing (all users)
@@ -59,9 +62,9 @@ backend/
   static/            # compiled frontend output — served at /
 alembic/             # migration scripts
 scripts/
-  send_notifications.py  # cron entry point: send_due_notifications +
-                         # send_weekly_summary
-  seed_dev_data.py       # optional local fixtures (users, chores, claims)
+  send_admin_digest.py       # cron (daily): email admins pending-claim digest
+  apply_weekly_allowance.py  # cron (Mondays): idempotent allowance transactions
+  seed_dev_data.py           # optional local fixtures (users, chores, claims)
 frontend/
   src/
     App.jsx              # Shell: auth gate, header, theme, settings gear

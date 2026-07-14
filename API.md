@@ -16,7 +16,7 @@
 
 | Method | Path | Who | Purpose |
 |---|---|---|---|
-| GET | `/chores` | any | List chores. Users see active chores available to them, with due-state; `?all=true` (admin) includes inactive |
+| GET | `/chores` | any | List chores. Users see active chores available to them with a computed `claimable` flag (per claim mode + schedule — this drives the kid "chores due" list); `?all=true` (admin) includes inactive |
 | POST | `/chores` | admin | Create chore |
 | GET | `/chores/{id}` | any | Chore detail |
 | PATCH | `/chores/{id}` | admin | Modify (value, schedule, assignees, active flag) |
@@ -39,7 +39,7 @@ Resolved claims are immutable — no PATCH after resolution.
 | Method | Path | Who | Purpose |
 |---|---|---|---|
 | GET | `/users` | admin | List users with balances |
-| PATCH | `/users/{id}` | admin | Role, active flag, display name |
+| PATCH | `/users/{id}` | admin | Role, active flag, display name, `weekly_allowance` (cents, signed) |
 | GET | `/users/{id}/balance` | owner/admin | Current balance (ledger sum) |
 | GET | `/transactions` | owner/admin | Ledger history; `?user_id=` (admin), paginated, newest first |
 | POST | `/transactions` | admin | Record `withdrawal` or `adjustment` (adjustment requires `note`) |
@@ -54,6 +54,10 @@ Allowlist management (who may sign in) lives under `PATCH /users` +
 | GET | `/health` | public | Liveness: DB reachable, version |
 | POST | `/deploy` | HMAC | Redeploy webhook (`DEPLOY_SECRET`-signed); touches `.deploy-trigger` |
 | GET | `/{spa_path}` | public | Static mount serving the compiled SPA (catch-all → `index.html`) |
+
+Cron entry points (not HTTP): `scripts/send_admin_digest.py` (daily admin
+email of pending claims) and `scripts/apply_weekly_allowance.py` (Monday
+allowance run, idempotent per ISO week).
 
 ## Conventions
 

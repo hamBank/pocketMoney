@@ -12,8 +12,9 @@
   proxy to :8001. The FastAPI app serves both the API and the built SPA, so
   Apache proxies everything.
 - **DB:** Postgres, database `pmoney` (local to the server).
-- **Cron:** `scripts/send_notifications.py` — chore-due notifications +
-  weekly summaries.
+- **Cron:** `scripts/send_admin_digest.py` (daily — admin email digest of
+  pending claims) and `scripts/apply_weekly_allowance.py` (Mondays —
+  idempotent allowance transactions).
 
 ## Provisioning — `deploy.sh`
 
@@ -45,7 +46,9 @@ the web app itself needing any.
 
 Environment for the service lives in `/opt/pocketMoney/.env` (loaded by the
 systemd unit; not in the repo): `DATABASE_URL`, `GOOGLE_CLIENT_ID`,
-`JWT_SECRET`, `ALLOWED_EMAILS`, `DEPLOY_SECRET`, `CURRENCY_SYMBOL`.
+`JWT_SECRET`, `ALLOWED_EMAILS`, `DEPLOY_SECRET`, `CURRENCY_SYMBOL`, plus
+SMTP settings for the admin digest (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`,
+`SMTP_PASSWORD`, `SMTP_FROM`).
 
 ## Logs & operations
 

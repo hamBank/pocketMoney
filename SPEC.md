@@ -29,6 +29,7 @@ A chore is a recurring task with:
 - **value** — amount credited when an approved claim resolves (integer cents)
 - **schedule** — how often it recurs: `daily`, `weekly` (choose weekdays),
   `monthly` (choose day of month), or `none` (always available / ad-hoc)
+- **claim mode** — who can claim it and how often (see below)
 - **assignees** — optionally restricted to specific users; default: any user
   may claim it
 - **active** flag — inactive chores are hidden and unclaimable but kept for
@@ -37,9 +38,25 @@ A chore is a recurring task with:
 Administrators can add, modify, and remove (deactivate) chores. Removing a
 chore never deletes historical claims against it.
 
-The schedule determines when a chore is **due** (shown prominently to kids,
-and used for chore-due notifications). A chore may be claimed once per
-schedule period per user unless configured otherwise.
+The schedule determines when a chore is **due** (shown prominently on kids'
+screens as their "chores due" list).
+
+### Claim modes
+
+Each chore is configured with one of three claim modes:
+
+| Mode | Behaviour |
+|---|---|
+| `per_user` | Every eligible user has their own claimable instance per schedule period. When a user claims it, the schedule immediately lines up the next claimable instance **for that user**; other users' instances are unaffected. |
+| `shared` | One claimable instance per period shared between users — first user to claim it gets it, then the schedule sets up the next period's instance. |
+| `open` | Infinitely recurring: any user can claim it, and it becomes claimable again for anyone after a short cooldown (configurable per chore, default 5 minutes). |
+
+Availability is derived from claim history rather than materialised
+occurrence rows: a chore is claimable by user X when there is no
+*pending-or-approved* claim in the current period by X (`per_user`), by
+anyone (`shared`), or within the cooldown window (`open`). Rejected and
+cancelled claims do **not** consume the slot — the chore becomes claimable
+again.
 
 ## Claims
 
@@ -89,6 +106,7 @@ Transaction types:
 | `penalty` | − | System, on penalty-claim approval |
 | `withdrawal` | − | Admin, when money is paid out / spent |
 | `adjustment` | ± | Admin, arbitrary balance correction (requires a note) |
+| `allowance` | ± | System, weekly allowance run (see below) |
 
 "Administrators can arbitrarily edit a user's balance" is implemented as an
 adjustment transaction — the edit is recorded, not applied in place.
@@ -96,15 +114,32 @@ adjustment transaction — the edit is recorded, not applied in place.
 Balances may go negative (penalties/withdrawals are not blocked by
 insufficient funds); the UI should highlight negative balances.
 
+## Weekly allowance
+
+Each user has an admin-configurable **weekly allowance** amount (default:
+none). At the start of each week (Monday), a scheduled job writes an
+`allowance` transaction for every user with a non-zero allowance. The value
+may be negative (an automatic weekly deduction) — hence "added/removed".
+
+The job is idempotent: at most one allowance transaction per user per ISO
+week, so re-runs and missed-then-caught-up runs can't double-credit.
+Changing a user's allowance affects future weeks only; past allowance
+transactions are ledger history like any other.
+
 ## Notifications
 
-- **Chore due** — notify assignees when a chore enters its due window.
-- **Weekly summary** — per-user digest: claims resolved, balance movement,
-  current balance; admins additionally get pending-claim counts.
+No push infrastructure. Everything is either on-screen or a daily admin
+email:
 
-Delivered by a cron-invoked script (`scripts/send_notifications.py`).
-**Open question:** delivery mechanism — web push (VAPID) vs email. Spec
-assumes web push; revisit before implementation.
+- **Kids:** the app home screen shows their **"chores due" list** — chores
+  currently claimable by them, derived from schedule + claim mode.
+- **Admins:** the app shows an **approval-due list** (pending claims queue),
+  and a **once-per-day email digest** (cron-invoked,
+  `scripts/send_admin_digest.py`) summarising pending claims awaiting
+  approval. No email is sent when there is nothing pending.
+
+Email goes out via SMTP (settings in server config, see
+[DEVELOPMENT.md](DEVELOPMENT.md) env vars).
 
 ## Money & currency
 
@@ -116,15 +151,7 @@ two decimals). No conversion features.
 
 - Multi-family / multi-tenant support
 - Multi-currency or currency conversion
-- Interest, savings goals, or scheduled allowance not tied to chores
+- Interest or savings goals
+- Web/mobile push notifications (on-screen lists + admin email only)
 - Email ingestion of any kind
 - Native mobile apps (responsive web only)
-
-## Open questions
-
-1. Notification delivery mechanism (web push vs email) — see above.
-2. Should a chore be claimable by multiple kids in the same period (e.g.
-   "empty dishwasher" done by whoever gets there first), or once per period
-   total? Current assumption: once per period **per user**.
-3. Do we want a scheduled base allowance (auto-credit per week) in v1? Easy
-   to add as a system-generated transaction type later.

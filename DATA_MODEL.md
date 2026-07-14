@@ -23,6 +23,7 @@ User ─┬─< Claim >─── Chore        (chore_id nullable: ad-hoc / penal
 | `name` | str | display name (editable, defaults from Google profile) |
 | `avatar_url` | str, nullable | from Google profile |
 | `role` | enum `admin` \| `user` | |
+| `weekly_allowance` | int, default 0 | cents, signed; auto-applied each Monday (0 = no allowance) |
 | `is_active` | bool, default true | deactivated users can't sign in; history kept |
 | `created_at` | datetime | |
 
@@ -39,6 +40,8 @@ transaction WHERE user_id = :id`, exposed via API/schema.
 | `value` | int | cents credited on approval (default for claims) |
 | `schedule` | enum `none` \| `daily` \| `weekly` \| `monthly` | |
 | `schedule_config` | JSON, nullable | `{"weekdays":[0,5]}` or `{"day_of_month":1}` |
+| `claim_mode` | enum `per_user` \| `shared` \| `open` | see SPEC.md claim modes |
+| `cooldown_minutes` | int, default 5 | `open` mode only: delay before re-claimable |
 | `assignee_ids` | JSON, nullable | list of user ids; null = any user may claim |
 | `is_active` | bool, default true | soft delete — inactive chores hidden, history kept |
 | `created_by` | int FK → user | |
@@ -47,6 +50,12 @@ transaction WHERE user_id = :id`, exposed via API/schema.
 
 `schedule_config` is a JSON column — mutations need SQLAlchemy
 `flag_modified` (see gotchas in [ARCHITECTURE.md](ARCHITECTURE.md)).
+
+**Claimability is computed, not stored** — no occurrence table. A chore is
+claimable by user X when no *pending-or-approved* claim exists in the
+current schedule period by X (`per_user`), by anyone (`shared`), or within
+the last `cooldown_minutes` (`open`). Rejected/cancelled claims free the
+slot. Logic lives in `backend/schedule.py`.
 
 ### `claim`
 
@@ -82,11 +91,15 @@ Append-only ledger. Rows are never updated or deleted; corrections are new
 | `id` | int PK | |
 | `user_id` | int FK → user, indexed | |
 | `claim_id` | int FK → claim, nullable | set for `claim_payout` / `penalty` |
-| `type` | enum `claim_payout` \| `penalty` \| `withdrawal` \| `adjustment` | |
+| `type` | enum `claim_payout` \| `penalty` \| `withdrawal` \| `adjustment` \| `allowance` | |
 | `amount` | int | cents, signed (+ credit / − debit) |
-| `note` | str, nullable | **required** for `adjustment` |
-| `created_by` | int FK → user | system rows use the resolving admin |
+| `note` | str, nullable | **required** for `adjustment`; allowance rows store the ISO week (e.g. `2026-W29`) |
+| `created_by` | int FK → user, nullable | null for system rows (allowance); claim payouts use the resolving admin |
 | `created_at` | datetime | |
+
+Allowance idempotency: the weekly job skips a user if an `allowance` row
+already exists for that ISO week (unique partial index or note lookup), so
+re-runs never double-credit.
 
 ### `app_config` (optional, v1-simple)
 
