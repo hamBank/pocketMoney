@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Local databases
+*.db
+
+# Node
+node_modules/
+
+# Built frontend — produced by `npm run build` / deploy, never committed
+backend/static/
+
+# Local config
+.env
