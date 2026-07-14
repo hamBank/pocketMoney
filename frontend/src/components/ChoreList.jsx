@@ -14,7 +14,11 @@ export default function ChoreList({ symbol, onChanged }) {
   const [error, setError] = useState(null)
 
   const refresh = () => listChores().then(setChores).catch((e) => setError(e.message))
-  useEffect(refresh, [])
+  // Block body so the effect returns undefined — refresh returns a Promise,
+  // and React would call it as a cleanup function on unmount and crash.
+  useEffect(() => {
+    refresh()
+  }, [])
 
   const claim = async (chore) => {
     setError(null)

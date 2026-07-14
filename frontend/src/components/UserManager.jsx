@@ -7,7 +7,11 @@ export default function UserManager({ symbol, onChanged }) {
   const [error, setError] = useState(null)
 
   const refresh = () => listUsers().then(setUsers).catch((e) => setError(e.message))
-  useEffect(refresh, [])
+  // Block body so the effect returns undefined — refresh returns a Promise,
+  // and React would call it as a cleanup function on unmount and crash.
+  useEffect(() => {
+    refresh()
+  }, [])
 
   const acted = () => {
     refresh()
