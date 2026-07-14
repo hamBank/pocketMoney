@@ -123,3 +123,114 @@ class ChoreRead(SQLModel):
     created_at: datetime
     updated_at: datetime
     claimable: bool = False  # computed per requesting user
+
+
+class ClaimKind(str, Enum):
+    chore = "chore"
+    adhoc = "adhoc"
+    penalty = "penalty"
+
+
+class ClaimStatus(str, Enum):
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
+    cancelled = "cancelled"
+
+
+class Claim(SQLModel, table=True):
+    """Immutable after resolution — corrections are new adjustment
+    transactions, never edits (SPEC.md)."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    chore_id: int | None = Field(default=None, foreign_key="chore.id")
+    user_id: int = Field(foreign_key="user.id", index=True)  # who it applies to
+    submitted_by: int = Field(foreign_key="user.id")
+    submitted_at: datetime = Field(default_factory=utcnow)
+    kind: ClaimKind = Field(default=ClaimKind.chore)
+    adhoc_name: str | None = None  # label for adhoc/penalty claims
+    original_value: int
+    original_note: str | None = None
+    status: ClaimStatus = Field(default=ClaimStatus.pending, index=True)
+    approved_value: int | None = None
+    resolution_note: str | None = None
+    resolved_by: int | None = Field(default=None, foreign_key="user.id")
+    resolved_at: datetime | None = None
+
+
+class ClaimCreate(SQLModel):
+    chore_id: int | None = None
+    note: str | None = None
+    # Admin-only extras:
+    user_id: int | None = None  # lodge on behalf of another user
+    kind: ClaimKind = ClaimKind.chore
+    name: str | None = None  # required for adhoc/penalty
+    value: int | None = None  # cents; >0 for adhoc, <0 for penalty
+    auto_approve: bool = False
+    create_chore: bool = False  # promote an adhoc into a recurring chore
+
+
+class ClaimResolve(SQLModel):
+    approved_value: int | None = None  # defaults to original_value
+    note: str | None = None
+
+
+class ClaimRead(SQLModel):
+    id: int
+    chore_id: int | None
+    chore_name: str  # chore name or adhoc label
+    user_id: int
+    user_name: str
+    submitted_by: int
+    submitted_by_name: str
+    submitted_at: datetime
+    kind: ClaimKind
+    original_value: int
+    original_note: str | None
+    status: ClaimStatus
+    approved_value: int | None
+    resolution_note: str | None
+    resolved_by: int | None
+    resolved_by_name: str | None
+    resolved_at: datetime | None
+
+
+class TransactionType(str, Enum):
+    claim_payout = "claim_payout"
+    penalty = "penalty"
+    withdrawal = "withdrawal"
+    adjustment = "adjustment"
+    allowance = "allowance"
+
+
+class Transaction(SQLModel, table=True):
+    """Append-only ledger; balance = SUM(amount). Never updated or deleted."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    claim_id: int | None = Field(default=None, foreign_key="claim.id")
+    type: TransactionType
+    amount: int  # cents, signed (+ credit / − debit)
+    note: str | None = None  # required for adjustment; ISO week for allowance
+    created_by: int | None = Field(default=None, foreign_key="user.id")
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class TransactionCreate(SQLModel):
+    user_id: int
+    type: TransactionType  # withdrawal or adjustment only via API
+    amount: int
+    note: str | None = None
+
+
+class TransactionRead(SQLModel):
+    id: int
+    user_id: int
+    user_name: str
+    claim_id: int | None
+    type: TransactionType
+    amount: int
+    note: str | None
+    created_by: int | None
+    created_by_name: str | None
+    created_at: datetime

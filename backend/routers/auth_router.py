@@ -10,6 +10,7 @@ from ..auth import (
 )
 from ..config import settings
 from ..database import get_session
+from ..ledger import user_read
 from ..models import User, UserRead, UserRole
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -70,10 +71,13 @@ def google_login(body: GoogleLoginRequest, session: Session = Depends(get_sessio
     session.commit()
     session.refresh(user)
     return LoginResponse(
-        token=create_access_token(user), user=UserRead.model_validate(user)
+        token=create_access_token(user), user=user_read(session, user)
     )
 
 
 @router.get("/me", response_model=UserRead)
-def me(user: User = Depends(get_current_user)):
-    return user
+def me(
+    user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    return user_read(session, user)

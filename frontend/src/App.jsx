@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
 import { getAuthConfig, getMe, getToken, setToken } from './api'
 import { formatCents } from './currency'
+import ApprovalQueue from './components/ApprovalQueue'
 import ChoreList from './components/ChoreList'
 import ChoreManager from './components/ChoreManager'
+import ClaimHistory from './components/ClaimHistory'
 import LoginPage from './components/LoginPage'
+import UserManager from './components/UserManager'
 
 function Centered({ children }) {
   return (
@@ -44,6 +47,8 @@ export default function App() {
     setUser(null)
   }
 
+  const refreshUser = () => getMe().then(setUser).catch(() => {})
+
   if (loading) return <Centered>Loading…</Centered>
   if (error) return <Centered>{error}</Centered>
   if (!user) return <LoginPage config={config} onSignedIn={setUser} />
@@ -78,31 +83,40 @@ export default function App() {
             {formatCents(user.balance, symbol)}
           </p>
         </div>
-        {user.role === 'admin' && (
-          <nav className="flex gap-2">
-            {[
-              ['chores', 'Chores'],
-              ['manage', 'Manage chores'],
-            ].map(([key, title]) => (
-              <button
-                key={key}
-                onClick={() => setTab(key)}
-                className={`rounded px-3 py-1 text-sm ${
-                  tab === key
-                    ? 'bg-slate-800 text-white'
-                    : 'bg-white text-slate-600 shadow'
-                }`}
-              >
-                {title}
-              </button>
-            ))}
-          </nav>
+        <nav className="flex flex-wrap gap-2">
+          {[
+            ['chores', 'Chores'],
+            ['history', 'History'],
+            ...(user.role === 'admin'
+              ? [
+                  ['approvals', 'Approvals'],
+                  ['users', 'Users'],
+                  ['manage', 'Manage chores'],
+                ]
+              : []),
+          ].map(([key, title]) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={`rounded px-3 py-1 text-sm ${
+                tab === key
+                  ? 'bg-slate-800 text-white'
+                  : 'bg-white text-slate-600 shadow'
+              }`}
+            >
+              {title}
+            </button>
+          ))}
+        </nav>
+        {tab === 'chores' && <ChoreList symbol={symbol} onChanged={refreshUser} />}
+        {tab === 'history' && <ClaimHistory symbol={symbol} onChanged={refreshUser} />}
+        {tab === 'approvals' && user.role === 'admin' && (
+          <ApprovalQueue symbol={symbol} onChanged={refreshUser} />
         )}
-        {tab === 'manage' && user.role === 'admin' ? (
-          <ChoreManager symbol={symbol} />
-        ) : (
-          <ChoreList symbol={symbol} />
+        {tab === 'users' && user.role === 'admin' && (
+          <UserManager symbol={symbol} onChanged={refreshUser} />
         )}
+        {tab === 'manage' && user.role === 'admin' && <ChoreManager symbol={symbol} />}
       </main>
     </div>
   )

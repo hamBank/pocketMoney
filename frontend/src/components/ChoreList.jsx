@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { listChores } from '../api'
+import { createClaim, listChores } from '../api'
 import { formatCents } from '../currency'
 
 const SCHEDULE_LABELS = {
@@ -9,13 +9,23 @@ const SCHEDULE_LABELS = {
   monthly: 'Monthly',
 }
 
-export default function ChoreList({ symbol }) {
+export default function ChoreList({ symbol, onChanged }) {
   const [chores, setChores] = useState(null)
   const [error, setError] = useState(null)
 
-  useEffect(() => {
-    listChores().then(setChores).catch((e) => setError(e.message))
-  }, [])
+  const refresh = () => listChores().then(setChores).catch((e) => setError(e.message))
+  useEffect(refresh, [])
+
+  const claim = async (chore) => {
+    setError(null)
+    try {
+      await createClaim({ chore_id: chore.id })
+      refresh()
+      onChanged?.()
+    } catch (e) {
+      setError(e.message)
+    }
+  }
 
   if (error) return <p className="text-sm text-red-600">{error}</p>
   if (!chores) return <p className="text-sm text-slate-400">Loading chores…</p>
@@ -36,7 +46,7 @@ export default function ChoreList({ symbol }) {
         ) : (
           <ul className="space-y-2">
             {due.map((chore) => (
-              <ChoreCard key={chore.id} chore={chore} symbol={symbol} due />
+              <ChoreCard key={chore.id} chore={chore} symbol={symbol} onClaim={claim} due />
             ))}
           </ul>
         )}
@@ -57,7 +67,7 @@ export default function ChoreList({ symbol }) {
   )
 }
 
-function ChoreCard({ chore, symbol, due = false }) {
+function ChoreCard({ chore, symbol, onClaim, due = false }) {
   return (
     <li
       className={`flex items-center justify-between rounded-xl bg-white p-4 shadow ${
@@ -79,13 +89,21 @@ function ChoreCard({ chore, symbol, due = false }) {
         <span className="font-bold text-emerald-600">
           {formatCents(chore.value, symbol)}
         </span>
-        <button
-          disabled
-          title="Claiming arrives in Phase 3"
-          className="cursor-not-allowed rounded bg-slate-200 px-3 py-1 text-sm text-slate-400"
-        >
-          Claim
-        </button>
+        {due ? (
+          <button
+            onClick={() => onClaim(chore)}
+            className="rounded bg-emerald-600 px-3 py-1 text-sm font-semibold text-white hover:bg-emerald-700"
+          >
+            Claim
+          </button>
+        ) : (
+          <button
+            disabled
+            className="cursor-not-allowed rounded bg-slate-200 px-3 py-1 text-sm text-slate-400"
+          >
+            Claim
+          </button>
+        )}
       </div>
     </li>
   )

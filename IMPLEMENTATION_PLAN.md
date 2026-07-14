@@ -51,22 +51,22 @@
 
 ## Phase 3 — Claims & ledger (the core)
 
-- [ ] `claim` + `transaction` tables + migration
-- [ ] `POST /claims` (user path): validates claimability, records original
+- [x] `claim` + `transaction` tables + migration
+- [x] `POST /claims` (user path): validates claimability, records original
       values; `POST /claims/{id}/cancel`
-- [ ] Approve/reject endpoints: status change + `claim_payout`/`penalty`
-      transaction written **in one DB transaction**; immutability guards
+- [x] Approve/reject endpoints: status change + `claim_payout`/`penalty`
+      transaction written in one DB transaction; immutability guards
       (409 on re-resolution)
-- [ ] Admin claim extras: on-behalf-of, `adhoc`, `penalty`, `auto_approve`,
+- [x] Admin claim extras: on-behalf-of, `adhoc`, `penalty`, `auto_approve`,
       `create_chore` promotion
-- [ ] `/transactions`: history + admin `withdrawal`/`adjustment` (note
+- [x] `/transactions`: history + admin `withdrawal`/`adjustment` (note
       required); balance = ledger sum on `UserRead`
-- [ ] Frontend: claim submission from `ChoreList`, `ApprovalQueue` (admin:
-      approve / edit-value-then-approve / reject), `ClaimHistory` +
-      balance display, `UserManager` payouts & adjustments
-- [ ] Tests: full lifecycle (submit → approve → balance), value-edited
-      approval preserves original, penalty flow, ledger append-only
-      invariants, per-mode re-claimability after reject/cancel
+- [x] Frontend: claim submission from `ChoreList`, `ApprovalQueue` (admin:
+      approve / edit-value-then-approve / reject + lodge-one-off form),
+      `ClaimHistory` + ledger view, `UserManager` payouts & adjustments
+- [x] Tests: full lifecycle (submit → approve → balance), value-edited
+      approval preserves original, penalty flow, admin-feature gating,
+      per-mode re-claimability after reject/cancel (17 new cases)
 
 **Exit:** the end-to-end pocket money loop works — this is the MVP.
 

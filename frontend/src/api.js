@@ -50,6 +50,28 @@ export const updateChore = (id, data) =>
 export const deactivateChore = (id) =>
   apiFetch(`/chores/${id}`, { method: 'DELETE' })
 
+// Claims
+export const listClaims = (params = {}) => {
+  const qs = new URLSearchParams(params).toString()
+  return apiFetch(qs ? `/claims?${qs}` : '/claims')
+}
+export const createClaim = (data) =>
+  apiFetch('/claims', { method: 'POST', body: data })
+export const approveClaim = (id, data = {}) =>
+  apiFetch(`/claims/${id}/approve`, { method: 'POST', body: data })
+export const rejectClaim = (id, data = {}) =>
+  apiFetch(`/claims/${id}/reject`, { method: 'POST', body: data })
+export const cancelClaim = (id) =>
+  apiFetch(`/claims/${id}/cancel`, { method: 'POST', body: {} })
+
+// Transactions
+export const listTransactions = (params = {}) => {
+  const qs = new URLSearchParams(params).toString()
+  return apiFetch(qs ? `/transactions?${qs}` : '/transactions')
+}
+export const createTransaction = (data) =>
+  apiFetch('/transactions', { method: 'POST', body: data })
+
 // Users (admin)
 export const listUsers = () => apiFetch('/users')
 export const inviteUser = (data) =>

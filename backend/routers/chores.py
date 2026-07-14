@@ -18,8 +18,15 @@ router = APIRouter(prefix="/chores", tags=["chores"])
 
 
 def claim_records_for_chore(session: Session, chore_id: int) -> list[ClaimRecord]:
-    # No claim table yet — Phase 3 replaces this with a real query.
-    return []
+    from ..models import Claim  # local import — claims router imports this module
+
+    claims = session.exec(select(Claim).where(Claim.chore_id == chore_id)).all()
+    return [
+        ClaimRecord(
+            user_id=c.user_id, submitted_at=c.submitted_at, status=c.status.value
+        )
+        for c in claims
+    ]
 
 
 def _validate(chore_data) -> None:

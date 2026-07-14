@@ -70,6 +70,7 @@ from resolution values, satisfying the audit requirements in the spec.
 | `submitted_by` | int FK → user | who lodged it (user, or admin on behalf) |
 | `submitted_at` | datetime | |
 | `kind` | enum `chore` \| `adhoc` \| `penalty` | |
+| `adhoc_name` | str, nullable | label for ad-hoc/penalty claims that have no chore |
 | `original_value` | int | cents as submitted (negative for penalties) |
 | `original_note` | str, nullable | submitter's note |
 | `status` | enum `pending` \| `approved` \| `rejected` \| `cancelled` | |
