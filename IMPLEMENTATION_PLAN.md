@@ -7,16 +7,16 @@
 
 ## Phase 0 — Scaffolding
 
-- [ ] Python project: `backend/` package, `requirements.txt` (fastapi,
+- [x] Python project: `backend/` package, `requirements.txt` (fastapi,
       sqlmodel, alembic, uvicorn, google-auth, pyjwt, pytest, httpx)
-- [ ] `backend/main.py` app factory, `/health`, config loading from env
-- [ ] `backend/database.py`: engine from `DATABASE_URL` (SQLite default),
-      session dependency; Alembic init with first empty migration
-- [ ] Frontend: Vite + React + Tailwind in `frontend/`, dev proxy `/api` →
-      :8000, `npm run build` → `backend/static/`; static mount + SPA
-      catch-all in `main.py`; `backend/static/` gitignored
-- [ ] Test rigs: pytest with per-test SQLite + FastAPI `TestClient`; vitest
-- [ ] CI (GitHub Actions): pytest + vitest + frontend build on PR
+- [x] `backend/main.py` app factory, `/health`, config loading from env
+- [x] `backend/database.py`: engine from `DATABASE_URL` (SQLite default),
+      session dependency; Alembic init with baseline migration
+- [x] Frontend: Vite + React + Tailwind in `frontend/`, dev proxy of API
+      prefixes → :8000, `npm run build` → `backend/static/`; SPA catch-all
+      in `main.py`; `backend/static/` gitignored
+- [x] Test rigs: pytest + FastAPI `TestClient`; vitest (`currency.js`)
+- [x] CI (GitHub Actions): pytest + alembic + vitest + frontend build on PR
 
 **Exit:** `uvicorn backend.main:app` serves the built SPA and `/health`; CI green.
 

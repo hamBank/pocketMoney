@@ -28,7 +28,8 @@ cd frontend && npm install
 # Backend (repo root) → http://localhost:8000
 AUTH_ENABLED=false python -m uvicorn backend.main:app --reload
 
-# Frontend dev server with HMR → http://localhost:5173 (proxies /api to :8000)
+# Frontend dev server with HMR → http://localhost:5173
+# (proxies API prefixes — /health /auth /chores /claims /users /transactions — to :8000)
 cd frontend && npm run dev
 
 # Or: production-style single origin — build then serve from the backend
