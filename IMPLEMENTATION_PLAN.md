@@ -72,12 +72,14 @@
 
 ## Phase 4 — Allowance & admin digest
 
-- [ ] `weekly_allowance` on user (+ `UserManager` field)
-- [ ] `scripts/apply_weekly_allowance.py`: Monday run, one `allowance`
-      transaction per user per ISO week (idempotent; tested for re-runs)
-- [ ] `backend/emails.py` SMTP sender (logs to stdout when unconfigured);
-      `scripts/send_admin_digest.py`: daily digest to admin emails —
-      pending claims + claims submitted/resolved since the previous run
+- [x] `weekly_allowance` on user (+ `UserManager` field — landed Phases 1/3)
+- [x] `scripts/apply_weekly_allowance.py`: Monday run, one `allowance`
+      transaction per user per ISO week (idempotent; tested for re-runs;
+      inactive and zero-allowance users skipped; negative allowances
+      supported)
+- [x] `backend/emails.py` SMTP sender (logs to stdout when unconfigured);
+      `scripts/send_admin_digest.py`: daily digest to active admin emails —
+      pending claims + claims submitted/resolved in the last 24h
       (approved values flagged when edited); silent when there is nothing
       pending and no activity
 
