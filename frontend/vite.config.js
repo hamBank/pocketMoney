@@ -15,4 +15,7 @@ export default defineConfig({
   server: {
     proxy: Object.fromEntries(apiPrefixes.map((p) => [p, 'http://localhost:8000'])),
   },
+  test: {
+    environment: 'jsdom',
+  },
 })

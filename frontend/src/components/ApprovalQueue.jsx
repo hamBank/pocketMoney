@@ -12,7 +12,9 @@ export default function ApprovalQueue({ symbol, onChanged }) {
     listUsers().then(setUsers).catch(() => setUsers([]))
   }
 
-  useEffect(refresh, [])
+  useEffect(() => {
+    refresh()
+  }, [])
 
   const acted = () => {
     refresh()

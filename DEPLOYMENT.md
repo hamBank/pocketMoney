@@ -100,6 +100,21 @@ systemctl restart pmoney                     # manual restart
 sudo -u postgres pg_dump pmoney > backup.sql # DB backup
 ```
 
+## Verifying a deploy
+
+```bash
+curl -s https://pmoney.hups.club/health
+# {"status":"ok","backend_version":"6420c36","frontend_version":"6420c36","frontend_built_at":"..."}
+```
+
+`backend_version` and `frontend_version` are both git short SHAs — `backend_version`
+from the checkout the running process started from, `frontend_version` from
+`static/version.json` (written by `npm run build`, read fresh on every
+request). They should always match after a full `deploy.sh --update` run.
+If they diverge, the frontend build step failed or was skipped on the last
+deploy — check `/var/log/pocketMoney-deploy.log` and rerun
+`sudo ./deploy.sh --update`.
+
 ## Backups
 
 The ledger is the family's money record — schedule a nightly `pg_dump` to

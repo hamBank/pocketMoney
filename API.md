@@ -51,7 +51,7 @@ Allowlist management (who may sign in) lives under `PATCH /users` +
 
 | Method | Path | Who | Purpose |
 |---|---|---|---|
-| GET | `/health` | public | Liveness: DB reachable, version |
+| GET | `/health` | public | Liveness: DB reachable, `backend_version` (git SHA the process is running), `frontend_version`/`frontend_built_at` (git SHA + timestamp the served bundle was built from, from `static/version.json`). The two versions diverging flags a partial deploy — see DEPLOYMENT.md. |
 | POST | `/deploy` | HMAC | Redeploy webhook (`DEPLOY_SECRET`-signed); touches `.deploy-trigger` |
 | GET | `/{spa_path}` | public | Static mount serving the compiled SPA (catch-all → `index.html`) |
 
