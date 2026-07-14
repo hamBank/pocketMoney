@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy import text
 
 from .database import engine
+from .routers import auth_router, users
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -17,6 +18,9 @@ def create_app() -> FastAPI:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         return {"status": "ok"}
+
+    app.include_router(auth_router.router)
+    app.include_router(users.router)
 
     # Routers must be included above this line — the SPA catch-all matches
     # everything and must be registered last.

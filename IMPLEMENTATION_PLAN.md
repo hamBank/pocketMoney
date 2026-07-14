@@ -22,15 +22,15 @@
 
 ## Phase 1 — Auth & users
 
-- [ ] `user` table + migration
-- [ ] `POST /auth/google`: verify Google ID token, enforce allowlist
+- [x] `user` table + migration
+- [x] `POST /auth/google`: verify Google ID token, enforce allowlist
       (`ALLOWED_EMAILS` bootstrap + invited users), create user on first
-      sign-in, issue app JWT
-- [ ] `auth.py` JWT issue/verify; `permissions.py` role dependencies;
-      `AUTH_ENABLED=false` dev bypass (fake admin)
-- [ ] `GET /auth/me`, `GET /auth/config`; `GET/PATCH /users`,
-      `POST /users/invite` (admin)
-- [ ] Frontend: `LoginPage` (Google Sign-In), auth gate in `App.jsx`,
+      sign-in, issue app JWT; first-ever sign-in becomes admin
+- [x] `auth.py` JWT issue/verify; `permissions.py` role dependencies;
+      `AUTH_ENABLED=false` dev bypass (persisted local admin)
+- [x] `GET /auth/me`, `GET /auth/config`; `GET/PATCH /users`,
+      `POST /users/invite` (admin); self-demotion/deactivation blocked
+- [x] Frontend: `LoginPage` (Google Sign-In), auth gate in `App.jsx`,
       `api.js` fetch wrapper with bearer token
 
 **Exit:** family members can sign in; admins can invite and manage users.
