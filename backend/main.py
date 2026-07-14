@@ -10,6 +10,7 @@ from sqlalchemy import text
 from .config import settings
 from .database import engine
 from .routers import auth_router, chores, claims, transactions, users
+from .version import backend_version, frontend_version
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -21,7 +22,13 @@ def create_app() -> FastAPI:
     def health():
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
-        return {"status": "ok"}
+        frontend = frontend_version()
+        return {
+            "status": "ok",
+            "backend_version": backend_version(),
+            "frontend_version": frontend["version"],
+            "frontend_built_at": frontend["built_at"],
+        }
 
     @app.post("/deploy")
     async def deploy(request: Request):

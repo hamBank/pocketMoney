@@ -12,6 +12,7 @@ node_modules/
 
 # Built frontend — produced by `npm run build` / deploy, never committed
 backend/static/
+frontend/public/version.json
 
 # Local config
 .env
