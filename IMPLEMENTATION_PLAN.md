@@ -87,10 +87,11 @@
 
 ## Phase 5 — Polish
 
-- [ ] Themes (`themes.js`, CSS variables), `ThemePicker`, `UserSettings`
-- [ ] Negative-balance highlighting; pagination on claims/transactions
-      (`X-Total-Count`); empty states; responsive/mobile pass
-- [ ] `scripts/seed_dev_data.py` fixtures
+- [x] Themes (`themes.js`, CSS variables — 5 themes on semantic color
+      tokens), `ThemePicker`, `UserSettings` (gear in header)
+- [x] Negative-balance highlighting; Load-more pagination on claims/
+      transactions (`X-Total-Count`); empty states; responsive/mobile pass
+- [x] `scripts/seed_dev_data.py` fixtures (idempotent)
 
 ## Phase 6 — Production
 

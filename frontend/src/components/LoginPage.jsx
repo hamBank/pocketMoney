@@ -38,10 +38,10 @@ export default function LoginPage({ config, onSignedIn }) {
   }, [config, onSignedIn])
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100">
-      <div className="flex flex-col items-center gap-4 rounded-xl bg-white p-10 shadow">
-        <h1 className="text-2xl font-bold text-slate-800">Pocket Money</h1>
-        <p className="text-sm text-slate-500">Sign in with your family Google account</p>
+    <div className="flex min-h-screen items-center justify-center bg-page">
+      <div className="flex flex-col items-center gap-4 rounded-xl bg-card p-10 shadow">
+        <h1 className="text-2xl font-bold text-ink">Pocket Money</h1>
+        <p className="text-sm text-ink-muted">Sign in with your family Google account</p>
         <div ref={buttonRef} />
         {error && <p className="max-w-xs text-center text-sm text-red-600">{error}</p>}
       </div>

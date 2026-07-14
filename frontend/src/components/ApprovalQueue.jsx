@@ -22,14 +22,14 @@ export default function ApprovalQueue({ symbol, onChanged }) {
   return (
     <div className="space-y-6">
       <section>
-        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-slate-500">
+        <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-ink-muted">
           Awaiting approval
         </h2>
         {error && <p className="text-sm text-red-600">{error}</p>}
         {!claims ? (
-          <p className="text-sm text-slate-400">Loading…</p>
+          <p className="text-sm text-ink-faint">Loading…</p>
         ) : claims.length === 0 ? (
-          <p className="text-sm text-slate-400">Nothing to review. 🎉</p>
+          <p className="text-sm text-ink-faint">Nothing to review. 🎉</p>
         ) : (
           <ul className="space-y-2">
             {claims.map((claim) => (
@@ -61,20 +61,20 @@ function PendingClaim({ claim, symbol, onActed }) {
   }
 
   return (
-    <li className="rounded-xl bg-white p-4 shadow">
+    <li className="rounded-xl bg-card p-4 shadow">
       <div className="flex items-center justify-between">
         <div>
-          <p className="font-semibold text-slate-800">
+          <p className="font-semibold text-ink">
             {claim.user_name}: {claim.chore_name}
           </p>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-ink-faint">
             {new Date(claim.submitted_at).toLocaleString()}
             {claim.submitted_by !== claim.user_id &&
               ` · lodged by ${claim.submitted_by_name}`}
             {claim.original_note && ` · “${claim.original_note}”`}
           </p>
         </div>
-        <span className="font-bold text-slate-700">
+        <span className="font-bold text-ink">
           {formatCents(claim.original_value, symbol)}
         </span>
       </div>
@@ -84,20 +84,20 @@ function PendingClaim({ claim, symbol, onActed }) {
           step="0.01"
           value={valueText}
           onChange={(e) => setValueText(e.target.value)}
-          className="w-24 rounded border border-slate-300 px-2 py-1 text-sm"
+          className="w-24 rounded border border-edge px-2 py-1 text-sm"
           title="Approved value — edit to pay a different amount"
         />
         <input
           placeholder="note (optional)"
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          className="flex-1 rounded border border-slate-300 px-2 py-1 text-sm"
+          className="flex-1 rounded border border-edge px-2 py-1 text-sm"
         />
         <button
           onClick={() =>
             act((value) => approveClaim(claim.id, { approved_value: value, note: note || null }))
           }
-          className="rounded bg-emerald-600 px-3 py-1 text-sm font-semibold text-white hover:bg-emerald-700"
+          className="rounded bg-accent px-3 py-1 text-sm font-semibold text-white hover:opacity-90"
         >
           Approve
         </button>
@@ -144,10 +144,10 @@ function LodgeClaimForm({ users, symbol, onLodged }) {
     }
   }
 
-  const input = 'rounded border border-slate-300 px-2 py-1 text-sm'
+  const input = 'rounded border border-edge px-2 py-1 text-sm'
   return (
-    <form onSubmit={submit} className="space-y-3 rounded-xl bg-white p-4 shadow">
-      <h2 className="font-semibold text-slate-800">Lodge a one-off</h2>
+    <form onSubmit={submit} className="space-y-3 rounded-xl bg-card p-4 shadow">
+      <h2 className="font-semibold text-ink">Lodge a one-off</h2>
       <div className="flex flex-wrap items-center gap-2">
         <select
           required
@@ -180,7 +180,7 @@ function LodgeClaimForm({ users, symbol, onLodged }) {
           onChange={(e) => setForm({ ...form, valueText: e.target.value })}
         />
       </div>
-      <div className="flex flex-wrap gap-4 text-sm text-slate-600">
+      <div className="flex flex-wrap gap-4 text-sm text-ink-muted">
         <label className="flex items-center gap-1">
           <input
             type="checkbox"
@@ -211,7 +211,7 @@ function LodgeClaimForm({ users, symbol, onLodged }) {
       {error && <p className="text-sm text-red-600">{error}</p>}
       <button
         type="submit"
-        className="rounded bg-slate-800 px-4 py-1.5 text-sm font-semibold text-white hover:bg-slate-700"
+        className="rounded bg-ink px-4 py-1.5 text-sm font-semibold text-page hover:opacity-90"
       >
         Lodge
       </button>
