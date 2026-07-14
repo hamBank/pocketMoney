@@ -42,6 +42,31 @@ watches that file and runs `deploy.sh --update`.
 The path-unit indirection means the deploy runs with root privileges without
 the web app itself needing any.
 
+## Google OAuth setup (one-time, manual)
+
+1. Go to <https://console.cloud.google.com/> and create a project (e.g.
+   "Pocket Money").
+2. **APIs & Services → OAuth consent screen**: choose **External**, fill in
+   the app name and your email. Add your family members' Google accounts as
+   **Test users** — an app in "Testing" status only allows listed test users,
+   which is exactly the allowlist behaviour we want; there is no need to
+   publish the app.
+3. **APIs & Services → Credentials → Create credentials → OAuth client ID**:
+   - Application type: **Web application**
+   - Authorized JavaScript origins: `https://pmoney.hups.club`
+     (add `http://localhost:5173` and `http://localhost:8000` for local
+     testing with real Google sign-in)
+   - No redirect URIs are needed — the app uses Google Identity Services'
+     ID-token flow, not a redirect flow.
+4. Copy the **Client ID** (ends in `.apps.googleusercontent.com`) into
+   `GOOGLE_CLIENT_ID` in `/opt/pocketMoney/.env`.
+5. Put the family's Gmail addresses in `ALLOWED_EMAILS` (comma-separated).
+   The **first** of them to sign in becomes the admin; invite/promote the
+   rest from the app's Users tab afterwards.
+
+No client secret is required anywhere: the backend only *verifies* Google's
+ID tokens against the client ID.
+
 ## Configuration
 
 Environment for the service lives in `/opt/pocketMoney/.env` (loaded by the

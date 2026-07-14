@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     jwt_secret: str = "dev-secret-change-me"
     allowed_emails: str = ""  # comma-separated bootstrap allowlist
     deploy_secret: str = ""
+    deploy_trigger_path: str = ".deploy-trigger"
     currency_symbol: str = "$"
     # SMTP for the admin daily digest; unset host = log emails to stdout.
     smtp_host: str = ""
