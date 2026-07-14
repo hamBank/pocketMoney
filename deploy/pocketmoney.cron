@@ -1,0 +1,11 @@
+# /etc/cron.d/pocketmoney — Pocket Money scheduled jobs
+SHELL=/bin/bash
+
+# Daily admin digest (18:00)
+0 18 * * * pocketMoney cd /opt/pocketMoney && .venv/bin/python scripts/send_admin_digest.py >> /var/log/pocketMoney-cron.log 2>&1
+
+# Weekly allowance (Monday 06:00; idempotent per ISO week)
+0 6 * * 1 pocketMoney cd /opt/pocketMoney && .venv/bin/python scripts/apply_weekly_allowance.py >> /var/log/pocketMoney-cron.log 2>&1
+
+# Nightly ledger backup (02:30) — 7-day rotation by weekday number
+30 2 * * * postgres pg_dump pmoney | gzip > /var/backups/pmoney/pmoney-$(date +\%u).sql.gz

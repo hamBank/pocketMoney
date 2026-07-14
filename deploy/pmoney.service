@@ -1,0 +1,15 @@
+[Unit]
+Description=Pocket Money (uvicorn)
+After=network.target postgresql.service
+
+[Service]
+User=pocketMoney
+Group=pocketMoney
+WorkingDirectory=/opt/pocketMoney
+EnvironmentFile=/opt/pocketMoney/.env
+ExecStart=/opt/pocketMoney/.venv/bin/uvicorn backend.main:app --host 127.0.0.1 --port 8001
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

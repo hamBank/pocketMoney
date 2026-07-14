@@ -1,0 +1,8 @@
+[Unit]
+Description=Watch .deploy-trigger and redeploy Pocket Money
+
+[Path]
+PathChanged=/opt/pocketMoney/.deploy-trigger
+
+[Install]
+WantedBy=multi-user.target

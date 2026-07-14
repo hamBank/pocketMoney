@@ -1,0 +1,6 @@
+[Unit]
+Description=Pocket Money redeploy (triggered by pmoney-deploy.path)
+
+[Service]
+Type=oneshot
+ExecStart=/opt/pocketMoney/deploy.sh --update

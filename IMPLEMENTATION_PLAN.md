@@ -95,13 +95,19 @@
 
 ## Phase 6 — Production
 
-- [ ] `deploy.sh` per [DEPLOYMENT.md](DEPLOYMENT.md): packages, system user,
+- [x] `deploy.sh` per [DEPLOYMENT.md](DEPLOYMENT.md): packages, system user,
       `/opt/pocketMoney`, venv, `npm ci && npm run build`,
-      `alembic upgrade head`, systemd service + path unit, Apache vhost,
-      cron entries for the two scripts
-- [ ] `/deploy` HMAC webhook + `.deploy-trigger`; GitHub webhook on `main`
-- [ ] Postgres database `pmoney`; nightly `pg_dump` backup job
-- [ ] Google OAuth production credentials for `pmoney.hups.club`; smoke test
+      `alembic upgrade head`, systemd service + path unit (in `deploy/`),
+      Apache vhost, cron entries for the two scripts
+- [x] `/deploy` HMAC webhook (`X-Hub-Signature-256`, main-branch pushes
+      only) + `.deploy-trigger`; GitHub webhook setup steps in deploy.sh
+      header
+- [x] Postgres role + database `pmoney`; nightly `pg_dump` backup cron
+      (7-day rotation); `.env.example` template
+- [ ] **(owner)** Google OAuth production credentials for
+      `pmoney.hups.club` (steps in DEPLOYMENT.md), fill `.env`, run
+      `deploy.sh` on the server, `certbot`, add the GitHub webhook,
+      smoke test
 
 **Exit:** push to `main` auto-deploys; family onboarded.
 
