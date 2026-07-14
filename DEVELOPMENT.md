@@ -56,6 +56,7 @@ admin — never set in production.
 
 ```bash
 pytest                       # backend — tests/ — runs against SQLite
+cd frontend && npm run lint  # eslint — flags hook/JSX bug patterns statically
 cd frontend && npm test      # vitest — frontend/src/*.test.{js,jsx}
 ```
 
@@ -76,7 +77,7 @@ CI stay on SQLite.
 ## Git workflow
 
 1. Branch from `main`.
-2. Make changes; run `pytest` and `npm test`.
+2. Make changes; run `pytest`, `npm run lint`, and `npm test`.
 3. Commit source only — `backend/static/` is gitignored and built during
    deploy.
 4. Push, open a PR, merge to `main`. A push to `main` can trigger production
