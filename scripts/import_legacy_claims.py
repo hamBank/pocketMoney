@@ -40,6 +40,18 @@ re-running (even with --commit) skips any entry whose tag already
 exists, so a partial run or accidental re-run can't double-credit or
 duplicate chores.
 
+Chore creation runs for every distinct name regardless of whether its
+claims still need creating — otherwise re-running this after an older
+run (from before --create-chores existed, or with --no-create-chores)
+had already imported every claim as kind=adhoc would report chores as
+"will be created" but silently create none, since there'd be nothing
+left in the claims loop to trigger it. Any such already-imported
+adhoc claim whose chore now exists (or is created by this same run)
+gets relinked in place — kind=chore, chore_id set, adhoc_name cleared.
+This is the one place this script mutates an existing row rather than
+only inserting; it only ever touches rows this same script tagged, and
+only the chore linkage, never value/timestamps/approval.
+
 Usage:
     # no real users yet — everything goes to one placeholder account
     python scripts/import_legacy_claims.py --input export.txt
@@ -210,11 +222,14 @@ def main() -> None:
 
         to_create = [p for p in planned if p[4] is None]
         already_done = [p for p in planned if p[4] is not None]
+        to_relink = [p for p in already_done if create_chores and p[4].kind == ClaimKind.adhoc]
 
         print(f"Parsed: {len(entries)} entries — {len(earned)} earned, "
               f"{len(skipped_expired)} expired (skipped), {len(skipped_incomplete)} incomplete (skipped)")
         if already_done:
             print(f"Already imported previously, skipping: {len(already_done)}")
+        if to_relink:
+            print(f"Already-imported ad-hoc claims that will be relinked to their chore: {len(to_relink)}")
 
         if create_chores:
             print(f"\nChores ({len(chore_report_cache)} distinct):")
@@ -243,6 +258,7 @@ def main() -> None:
         # transaction with the claims/transactions below.
         user_cache: dict[str, User] = {}
         chore_cache: dict[str, Chore] = {}
+        chores_created = 0
 
         def get_or_create_user(email: str) -> User:
             if email not in user_cache:
@@ -256,9 +272,11 @@ def main() -> None:
             return user_cache[email]
 
         def get_or_create_chore(name: str, admin_id: int) -> Chore:
+            nonlocal chores_created
             if name not in chore_cache:
                 found = find_chore(name)
                 if found is None:
+                    chores_created += 1
                     found = Chore(
                         name=name,
                         value=chore_values[name],
@@ -274,9 +292,25 @@ def main() -> None:
             return chore_cache[name]
 
         admin = get_or_create_user(admin_email)
+
+        # Resolve/create every distinct chore up front, independent of
+        # whether any particular claim still needs creating — see docstring.
+        if create_chores:
+            for name in chore_values:
+                get_or_create_chore(name, admin.id)
+
+        relinked = 0
+        for entry, _target_email, _timestamp, _tag, existing in to_relink:
+            chore = chore_cache[entry.chore_name]
+            existing.chore_id = chore.id
+            existing.kind = ClaimKind.chore
+            existing.adhoc_name = None
+            session.add(existing)
+            relinked += 1
+
         for entry, target_email, timestamp, tag, _ in to_create:
             target = get_or_create_user(target_email)
-            chore = get_or_create_chore(entry.chore_name, admin.id) if create_chores else None
+            chore = chore_cache.get(entry.chore_name) if create_chores else None
             claim = Claim(
                 kind=ClaimKind.chore if chore else ClaimKind.adhoc,
                 chore_id=chore.id if chore else None,
@@ -305,7 +339,8 @@ def main() -> None:
             )
         session.commit()
         print(f"\nCommitted {len(to_create)} claim(s) + transaction(s)"
-              f"{f' and {len(chore_cache)} chore(s)' if create_chores else ''}.")
+              f"{f' and {chores_created} new chore(s)' if create_chores else ''}"
+              f"{f'; relinked {relinked} previously-imported claim(s) to their chore' if relinked else ''}.")
 
 
 if __name__ == "__main__":
