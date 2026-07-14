@@ -15,7 +15,7 @@ export default function UserManager({ symbol, onChanged }) {
   }
 
   if (error) return <p className="text-sm text-red-600">{error}</p>
-  if (!users) return <p className="text-sm text-slate-400">Loading…</p>
+  if (!users) return <p className="text-sm text-ink-faint">Loading…</p>
 
   return (
     <ul className="space-y-3">
@@ -65,15 +65,15 @@ function UserRow({ user, symbol, onActed }) {
     })
   }
 
-  const input = 'rounded border border-slate-300 px-2 py-1 text-sm'
+  const input = 'rounded border border-edge px-2 py-1 text-sm'
   return (
-    <li className="rounded-xl bg-white p-4 shadow">
+    <li className="rounded-xl bg-card p-4 shadow">
       <div className="flex items-center justify-between">
         <div>
-          <p className="font-semibold text-slate-800">
+          <p className="font-semibold text-ink">
             {user.name || user.email}
             {user.role === 'admin' && (
-              <span className="ml-2 rounded bg-slate-200 px-1.5 py-0.5 text-xs">admin</span>
+              <span className="ml-2 rounded bg-soft px-1.5 py-0.5 text-xs">admin</span>
             )}
             {!user.is_active && (
               <span className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-xs text-red-600">
@@ -81,18 +81,18 @@ function UserRow({ user, symbol, onActed }) {
               </span>
             )}
           </p>
-          <p className="text-xs text-slate-400">{user.email}</p>
+          <p className="text-xs text-ink-faint">{user.email}</p>
         </div>
         <span
           className={`text-xl font-bold ${
-            user.balance < 0 ? 'text-red-600' : 'text-slate-800'
+            user.balance < 0 ? 'text-red-600' : 'text-ink'
           }`}
         >
           {formatCents(user.balance, symbol)}
         </span>
       </div>
-      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
-        <label className="text-xs text-slate-500">Weekly allowance</label>
+      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-edge pt-3">
+        <label className="text-xs text-ink-muted">Weekly allowance</label>
         <input
           type="number"
           step="0.01"
@@ -102,11 +102,11 @@ function UserRow({ user, symbol, onActed }) {
         />
         <button
           onClick={saveAllowance}
-          className="rounded border border-slate-300 px-2 py-1 text-xs text-slate-600"
+          className="rounded border border-edge px-2 py-1 text-xs text-ink-muted"
         >
           Save
         </button>
-        <span className="mx-2 text-slate-200">|</span>
+        <span className="mx-2 text-edge">|</span>
         <input
           type="number"
           step="0.01"
@@ -124,13 +124,13 @@ function UserRow({ user, symbol, onActed }) {
         />
         <button
           onClick={() => record('withdrawal')}
-          className="rounded bg-slate-800 px-3 py-1 text-xs font-semibold text-white"
+          className="rounded bg-ink px-3 py-1 text-xs font-semibold text-page"
         >
           Pay out
         </button>
         <button
           onClick={() => record('adjustment')}
-          className="rounded border border-slate-300 px-3 py-1 text-xs text-slate-600"
+          className="rounded border border-edge px-3 py-1 text-xs text-ink-muted"
           title="Signed adjustment — note required"
         >
           Adjust

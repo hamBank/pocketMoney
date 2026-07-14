@@ -50,11 +50,34 @@ export const updateChore = (id, data) =>
 export const deactivateChore = (id) =>
   apiFetch(`/chores/${id}`, { method: 'DELETE' })
 
+// Paged GET: resolves to { items, total } using the X-Total-Count header.
+export async function apiFetchPaged(path) {
+  const headers = {}
+  const token = getToken()
+  if (token) headers['Authorization'] = `Bearer ${token}`
+  const response = await fetch(path, { headers })
+  if (!response.ok) {
+    let detail
+    try {
+      detail = (await response.json()).detail
+    } catch {
+      // non-JSON error body
+    }
+    throw new Error(detail || `${response.status} ${response.statusText}`)
+  }
+  return {
+    items: await response.json(),
+    total: Number(response.headers.get('X-Total-Count') || 0),
+  }
+}
+
 // Claims
 export const listClaims = (params = {}) => {
   const qs = new URLSearchParams(params).toString()
   return apiFetch(qs ? `/claims?${qs}` : '/claims')
 }
+export const listClaimsPaged = (params = {}) =>
+  apiFetchPaged(`/claims?${new URLSearchParams(params)}`)
 export const createClaim = (data) =>
   apiFetch('/claims', { method: 'POST', body: data })
 export const approveClaim = (id, data = {}) =>
@@ -69,6 +92,8 @@ export const listTransactions = (params = {}) => {
   const qs = new URLSearchParams(params).toString()
   return apiFetch(qs ? `/transactions?${qs}` : '/transactions')
 }
+export const listTransactionsPaged = (params = {}) =>
+  apiFetchPaged(`/transactions?${new URLSearchParams(params)}`)
 export const createTransaction = (data) =>
   apiFetch('/transactions', { method: 'POST', body: data })
 

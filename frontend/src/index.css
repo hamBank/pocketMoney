@@ -1,1 +1,80 @@
 @import "tailwindcss";
+
+/* Semantic color tokens — components use bg-page/bg-card/text-ink/etc.
+   and each theme overrides the underlying CSS variables. */
+@theme inline {
+  --color-page: var(--page);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-edge: var(--edge);
+  --color-soft: var(--soft);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+}
+
+:root,
+[data-theme="light"] {
+  --page: #f1f5f9;
+  --card: #ffffff;
+  --ink: #1e293b;
+  --ink-muted: #64748b;
+  --ink-faint: #94a3b8;
+  --edge: #cbd5e1;
+  --soft: #e2e8f0;
+  --accent: #059669;
+  --accent-soft: #d1fae5;
+}
+
+[data-theme="dark"] {
+  --page: #0f172a;
+  --card: #1e293b;
+  --ink: #e2e8f0;
+  --ink-muted: #94a3b8;
+  --ink-faint: #64748b;
+  --edge: #334155;
+  --soft: #334155;
+  --accent: #10b981;
+  --accent-soft: #064e3b;
+}
+
+[data-theme="mint"] {
+  --page: #ecfdf5;
+  --card: #ffffff;
+  --ink: #064e3b;
+  --ink-muted: #047857;
+  --ink-faint: #34d399;
+  --edge: #a7f3d0;
+  --soft: #d1fae5;
+  --accent: #059669;
+  --accent-soft: #d1fae5;
+}
+
+[data-theme="ocean"] {
+  --page: #eff6ff;
+  --card: #ffffff;
+  --ink: #0c4a6e;
+  --ink-muted: #0369a1;
+  --ink-faint: #7dd3fc;
+  --edge: #bae6fd;
+  --soft: #e0f2fe;
+  --accent: #0284c7;
+  --accent-soft: #e0f2fe;
+}
+
+[data-theme="sunset"] {
+  --page: #fff7ed;
+  --card: #ffffff;
+  --ink: #7c2d12;
+  --ink-muted: #c2410c;
+  --ink-faint: #fdba74;
+  --edge: #fed7aa;
+  --soft: #ffedd5;
+  --accent: #ea580c;
+  --accent-soft: #ffedd5;
+}
+
+body {
+  background-color: var(--page);
+}

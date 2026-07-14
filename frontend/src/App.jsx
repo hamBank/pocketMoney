@@ -7,11 +7,12 @@ import ChoreManager from './components/ChoreManager'
 import ClaimHistory from './components/ClaimHistory'
 import LoginPage from './components/LoginPage'
 import UserManager from './components/UserManager'
+import UserSettings from './components/UserSettings'
 
 function Centered({ children }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100">
-      <div className="rounded-xl bg-white p-8 text-slate-600 shadow">{children}</div>
+    <div className="flex min-h-screen items-center justify-center bg-page">
+      <div className="rounded-xl bg-card p-8 text-ink-muted shadow">{children}</div>
     </div>
   )
 }
@@ -22,6 +23,7 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [tab, setTab] = useState('chores')
+  const [showSettings, setShowSettings] = useState(false)
 
   useEffect(() => {
     ;(async () => {
@@ -55,31 +57,43 @@ export default function App() {
 
   const symbol = config.currency_symbol || '$'
   return (
-    <div className="min-h-screen bg-slate-100">
-      <header className="flex items-center justify-between bg-white px-6 py-3 shadow">
-        <h1 className="text-lg font-bold text-slate-800">Pocket Money</h1>
-        <div className="flex items-center gap-3">
+    <div className="min-h-screen bg-page">
+      <header className="flex flex-wrap items-center justify-between gap-y-2 bg-card px-4 py-3 shadow sm:px-6">
+        <h1 className="text-lg font-bold text-ink">Pocket Money</h1>
+        <div className="flex flex-wrap items-center gap-3">
           {user.avatar_url && (
             <img src={user.avatar_url} alt="" className="h-8 w-8 rounded-full" />
           )}
-          <span className="text-sm text-slate-600">
+          <span className="text-sm text-ink-muted">
             {user.name || user.email}
             {user.role === 'admin' && (
-              <span className="ml-1 rounded bg-slate-200 px-1.5 py-0.5 text-xs">admin</span>
+              <span className="ml-1 rounded bg-soft px-1.5 py-0.5 text-xs">admin</span>
             )}
           </span>
           <button
+            onClick={() => setShowSettings((s) => !s)}
+            title="Settings"
+            className="rounded border border-edge px-2 py-1 text-sm text-ink-muted hover:opacity-80"
+          >
+            ⚙
+          </button>
+          <button
             onClick={signOut}
-            className="rounded border border-slate-300 px-3 py-1 text-sm text-slate-600 hover:bg-slate-50"
+            className="rounded border border-edge px-3 py-1 text-sm text-ink-muted hover:opacity-80"
           >
             Sign out
           </button>
         </div>
       </header>
-      <main className="mx-auto max-w-3xl space-y-6 p-6">
-        <div className="rounded-xl bg-white p-6 shadow">
-          <p className="text-sm text-slate-500">Balance</p>
-          <p className="text-3xl font-bold text-slate-800">
+      <main className="mx-auto max-w-3xl space-y-6 p-4 sm:p-6">
+        <UserSettings open={showSettings} onClose={() => setShowSettings(false)} />
+        <div className="rounded-xl bg-card p-6 shadow">
+          <p className="text-sm text-ink-muted">Balance</p>
+          <p
+            className={`text-3xl font-bold ${
+              user.balance < 0 ? 'text-red-600' : 'text-ink'
+            }`}
+          >
             {formatCents(user.balance, symbol)}
           </p>
         </div>
@@ -100,8 +114,8 @@ export default function App() {
               onClick={() => setTab(key)}
               className={`rounded px-3 py-1 text-sm ${
                 tab === key
-                  ? 'bg-slate-800 text-white'
-                  : 'bg-white text-slate-600 shadow'
+                  ? 'bg-ink text-page'
+                  : 'bg-card text-ink-muted shadow'
               }`}
             >
               {title}

@@ -102,13 +102,13 @@ export default function ChoreManager({ symbol }) {
     refresh()
   }
 
-  const input = 'w-full rounded border border-slate-300 px-2 py-1 text-sm'
-  const label = 'block text-xs font-semibold uppercase tracking-wide text-slate-500'
+  const input = 'w-full rounded border border-edge px-2 py-1 text-sm'
+  const label = 'block text-xs font-semibold uppercase tracking-wide text-ink-muted'
 
   return (
     <div className="space-y-6">
-      <form onSubmit={submit} className="space-y-3 rounded-xl bg-white p-4 shadow">
-        <h2 className="font-semibold text-slate-800">
+      <form onSubmit={submit} className="space-y-3 rounded-xl bg-card p-4 shadow">
+        <h2 className="font-semibold text-ink">
           {editingId ? 'Edit chore' : 'New chore'}
         </h2>
         <div className="grid grid-cols-2 gap-3">
@@ -163,8 +163,8 @@ export default function ChoreManager({ symbol }) {
                   onClick={() => toggleInList('weekdays', index)}
                   className={`rounded px-2 py-1 text-xs ${
                     form.weekdays.includes(index)
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-slate-200 text-slate-600'
+                      ? 'bg-accent text-white'
+                      : 'bg-soft text-ink-muted'
                   }`}
                 >
                   {day}
@@ -209,8 +209,8 @@ export default function ChoreManager({ symbol }) {
                   onClick={() => toggleInList('assignee_ids', user.id)}
                   className={`rounded px-2 py-1 text-xs ${
                     form.assignee_ids.includes(user.id)
-                      ? 'bg-emerald-600 text-white'
-                      : 'bg-slate-200 text-slate-600'
+                      ? 'bg-accent text-white'
+                      : 'bg-soft text-ink-muted'
                   }`}
                 >
                   {user.name || user.email}
@@ -223,7 +223,7 @@ export default function ChoreManager({ symbol }) {
         <div className="flex gap-2">
           <button
             type="submit"
-            className="rounded bg-emerald-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700"
+            className="rounded bg-accent px-4 py-1.5 text-sm font-semibold text-white hover:opacity-90"
           >
             {editingId ? 'Save changes' : 'Create chore'}
           </button>
@@ -234,7 +234,7 @@ export default function ChoreManager({ symbol }) {
                 setEditingId(null)
                 setForm(EMPTY_FORM)
               }}
-              className="rounded border border-slate-300 px-4 py-1.5 text-sm text-slate-600"
+              className="rounded border border-edge px-4 py-1.5 text-sm text-ink-muted"
             >
               Cancel
             </button>
@@ -246,20 +246,20 @@ export default function ChoreManager({ symbol }) {
         {chores.map((chore) => (
           <li
             key={chore.id}
-            className={`flex items-center justify-between rounded-xl bg-white p-4 shadow ${
+            className={`flex items-center justify-between rounded-xl bg-card p-4 shadow ${
               chore.is_active ? '' : 'opacity-60'
             }`}
           >
             <div>
-              <p className="font-semibold text-slate-800">
+              <p className="font-semibold text-ink">
                 {chore.name}
                 {!chore.is_active && (
-                  <span className="ml-2 rounded bg-slate-200 px-1.5 py-0.5 text-xs">
+                  <span className="ml-2 rounded bg-soft px-1.5 py-0.5 text-xs">
                     inactive
                   </span>
                 )}
               </p>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-ink-faint">
                 {chore.schedule} · {chore.claim_mode} ·{' '}
                 {formatCents(chore.value, symbol)}
               </p>
@@ -267,13 +267,13 @@ export default function ChoreManager({ symbol }) {
             <div className="flex gap-2">
               <button
                 onClick={() => startEdit(chore)}
-                className="rounded border border-slate-300 px-3 py-1 text-sm text-slate-600"
+                className="rounded border border-edge px-3 py-1 text-sm text-ink-muted"
               >
                 Edit
               </button>
               <button
                 onClick={() => setActive(chore, !chore.is_active)}
-                className="rounded border border-slate-300 px-3 py-1 text-sm text-slate-600"
+                className="rounded border border-edge px-3 py-1 text-sm text-ink-muted"
               >
                 {chore.is_active ? 'Deactivate' : 'Reactivate'}
               </button>
