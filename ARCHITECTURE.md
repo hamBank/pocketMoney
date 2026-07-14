@@ -1,128 +1,145 @@
-# Money Track — Architecture & Reference
+# Pocket Money — Architecture & Reference
 
 > Snapshot for re-loading context in future sessions. Last updated: 2026-07-14.
+>
+> Companion docs: [SPEC.md](SPEC.md) (product spec), [DATA_MODEL.md](DATA_MODEL.md)
+> (tables & schemas), [API.md](API.md) (endpoints), [DEVELOPMENT.md](DEVELOPMENT.md)
+> (local dev workflow), [DEPLOYMENT.md](DEPLOYMENT.md) (server & deploy).
 
 ## Overview
 
-A family pocket money / chore web app. A FastAPI + SQL backend serves a REST API
-**and** the compiled React SPA from the same origin. Administrator Users create 
-chores, which may have a re-occuring schedule, 
+A single-family pocket money / chore web app. A FastAPI + SQL backend serves a
+REST API **and** the compiled React SPA from the same origin.
 
-Chores are a reccuring item with a schedule, value and other configuration options. Users
-can 'claim' a chore is done, which routes the claim for approval by an administrator.
-Claims when approved will increment an amount of money into a users 'account'
-Administrators can add / modify / remove chores. 
-Administrators can approve, modify or reject a claim.
-Administrators can lodge and approve a claim on behalf of a user.
-Administrators can lodge a on-off chore/claim against a user, optionally creating it as an 
-on-going claim as part of the process
-Administrators can arbitrarly edit a users balence.
-Administrators can lodge a 'penalty' claim with a negative balance.
+Administrators (parents) create **chores** — recurring items with a schedule, a
+monetary value, a claim mode (`per_user` / `shared` / `open`), and other
+configuration. Users (kids) **claim** that a chore is done; the claim routes to
+an administrator for approval. An approved claim credits money into the user's
+**account** via an append-only transaction ledger, which also records
+withdrawals (money paid out / spent), penalties (negative claims), manual
+balance adjustments, and an optional per-user weekly allowance applied every
+Monday. Kids see a "chores due" list on their screen; admins get an in-app
+approval queue plus a once-per-day email digest of pending claims.
 
-For all claims we need to log:
-- who submitted the claim
-- the user who the claim applies to
-- when the claim was submitted
-- the original values of the claim
-- when it was approved
-- the final approved value (which may have been edited by an administrator during approval)
+See [SPEC.md](SPEC.md) for the full behavioural spec, including the audit
+fields every claim must record.
 
 - **Repo:** `https://github.com/hamBank/pocketMoney.git` (default branch `main`)
-- **Local root:** `F:\Users\foobi\Downloads\pocketMoney\`
 - **Production:** `https://pmoney.hups.club` on server `camelidcastle.hups.club`
 
 ## Stack
 
-- **Backend:** FastAPI + SQLModel (SQLAlchemy) + Postgres (`pmoney`) + SQLite for local testing
+- **Backend:** FastAPI + SQLModel (SQLAlchemy) + Postgres (`pmoney`) in
+  production, SQLite for local dev/testing. Schema migrations via Alembic.
 - **Frontend:** React + Vite + Tailwind, built into `backend/static/`
-- **Auth:** Google OAuth (JWT bearer tokens); auth can be disabled for local dev
-- **Server:** systemd unit `pmoney` runs uvicorn on `127.0.0.1:8001`, behind
+- **Auth:** Google OAuth for all users (JWT bearer tokens issued by the
+  backend). Sign-in restricted to an admin-managed allowlist of family
+  accounts. Auth can be disabled for local dev (`AUTH_ENABLED=false`).
+- **Money:** single currency, stored as integer cents. Display symbol/format
+  is app-level configuration. No currency conversion.
+- **Server:** systemd unit `pmoney` runs uvicorn on `127.0.0.1:8001`, behind an
   Apache vhost (`pmoney.hups.club.conf`). Debian/Ubuntu.
 
-## Repo layout
+## Repo layout (planned)
 
 ```
 backend/
-  main.py            # FastAPI app, auth middleware, static mount, /deploy, /health, /currency/convert
-  database.py        # SQLite engine + startup migrations
-  models.py          # SQLModel tables + Pydantic schemas (see Data Model)
-  auth.py            # JWT + Google token verification, AUTH_ENABLED flag
-  importer.py        # CSV → DB seeding
-  permissions.py     # require_admin_role / require_user_role
-  notifications.py  # push triggers: chore-due window, weekly summary
+  main.py            # FastAPI app factory, auth middleware, static mount,
+                     # /deploy webhook, /health
+  database.py        # engine setup (Postgres/SQLite), session dependency
+  models.py          # SQLModel tables + Pydantic schemas (see DATA_MODEL.md)
+  auth.py            # JWT issue/verify, Google token verification,
+                     # AUTH_ENABLED flag, email allowlist
+  permissions.py     # require_admin_role / require_user_role dependencies
+  schedule.py        # chore recurrence + claimability (per_user/shared/open modes)
+  emails.py          # SMTP send + admin daily-digest composition
   routers/
-    items.py         # /chores CRUD
     auth_router.py   # /auth/google, /auth/me, /auth/config
-  static/            # COMPILED frontend output (committed) — served at /
+    chores.py        # /chores CRUD (admin) + listing (all users)
+    claims.py        # /claims submit/approve/reject/modify, ad-hoc & penalty
+    users.py         # /users admin management, balances
+    transactions.py  # /transactions ledger: withdrawals, adjustments, history
+  static/            # compiled frontend output — served at /
+alembic/             # migration scripts
 scripts/
-  send_notifications.py         # cron entry point: send_due_notifications +
+  send_admin_digest.py       # cron (daily): email admins pending claims +
+                             # that day's submitted/resolved claim activity
+  apply_weekly_allowance.py  # cron (Mondays): idempotent allowance transactions
+  seed_dev_data.py           # optional local fixtures (users, chores, claims)
 frontend/
   src/
-    App.jsx                  # Shell: auth gate, header, theme, settings gear,
-                             # PendingReview modal trigger
-    api.js                   # fetch wrapper + all endpoint helpers
-    kinds.js                 # SINGLE SOURCE OF TRUTH for item kinds (see below)
-    currency.js              # cost parsing, conversion, formatting, isFullyPaid
-    settings.js              # reactive hide-completed store (useSyncExternalStore)
+    App.jsx              # Shell: auth gate, header, theme, settings gear
+    api.js               # fetch wrapper + all endpoint helpers
+    currency.js          # cents ↔ display formatting (single currency)
+    settings.js          # reactive client settings store (useSyncExternalStore)
     themes.js
-    index.css                # Tailwind + CSS variables per theme (5 themes)
-    components/      
-      UserSettings           # Config for User
-      PendingReview          # modal: review/apply/discard email-ingested items
-      ThemePicker, LoginPage, ShareModal
+    index.css            # Tailwind + CSS variables per theme
+    components/
+      ChoreList          # kid view: chores due now, claim button
+      ClaimHistory       # per-user claim + transaction history
+      ApprovalQueue      # admin: pending claims — approve/modify/reject
+      ChoreManager       # admin: chore CRUD, schedules, values
+      UserManager        # admin: users, roles, balance adjustments, payouts
+      UserSettings, ThemePicker, LoginPage
+tests/                   # pytest (backend); frontend/src/*.test.{js,jsx} (vitest)
+deploy.sh                # idempotent server provisioning + --update mode
 ```
 
-## Data Model (`backend/models.py`)
+## Data model
 
-Hierarchy: 
+Hierarchy (details in [DATA_MODEL.md](DATA_MODEL.md)):
 
+```
+User ─┬─< Claim >─── Chore        (a claim is a user asserting a chore is done;
+      │                            chore_id is null for ad-hoc/penalty claims)
+      └─< Transaction >── Claim?  (append-only ledger; balance = SUM(amount);
+                                   claim payouts, withdrawals, penalties,
+                                   manual adjustments)
+```
 
 ## Key API endpoints
+
+See [API.md](API.md) for the full list. Highlights:
+
+- `POST /auth/google` — exchange Google ID token for app JWT
+- `GET /chores`, `POST/PATCH/DELETE /chores/{id}` (admin)
+- `POST /claims` — user claims a chore; admins can lodge on behalf of a user,
+  as ad-hoc one-offs, or as penalties (negative value)
+- `POST /claims/{id}/approve|reject` — admin resolution; approval may edit value
+- `GET /users/{id}/balance`, `GET /transactions?user_id=`
+- `POST /transactions` — admin: withdrawal / manual adjustment
+- `GET /health`, `POST /deploy` (HMAC-signed redeploy webhook)
 
 ## Build & deploy workflow
 
 ```bash
 # Frontend build (required after any frontend/src change) — outputs to backend/static/
-cd F:\Users\foobi\Downloads\pocketMoney\frontend
-npm run build
+cd frontend && npm run build
 
-# Run backend locally
-cd F:\Users\foobi\Downloads\pocketMoney
+# Run backend locally (from repo root)
 python -m uvicorn backend.main:app --reload   # → http://localhost:8000
 ```
 
-**Git workflow used in this project:** make changes → build frontend if any
-`frontend/src` changed → commit BOTH source and built `backend/static/` assets →
-create a branch, push, merge to `main`, push `main`. Push via HTTPS with PAT
-(credentials in project memory, not in repo).
+**Git workflow:** make changes → build frontend if any `frontend/src` changed →
+commit → branch, push, PR, merge to `main`. The compiled `backend/static/`
+bundle is **not** committed; it is built server-side during deploy (see
+[DEPLOYMENT.md](DEPLOYMENT.md)).
 
 **Production deploy:** `deploy.sh` (idempotent) provisions packages, the
-`pocketMoney` system user, `/opt/pocketMoney`, the systemd service, and Apache vhost.
-A push to `main` can trigger redeploy via the `/deploy` webhook (HMAC-signed,
-`DEPLOY_SECRET`) which touches `.deploy-trigger`; a systemd path unit runs
-`deploy.sh --update`. Deploy logs: `/var/log/pocketMoney-deploy.log` (each run
-writes a timestamped header).
-
-## Server access
-
-SSH: `ssh -i C:/Users/foobi/.ssh/pocketMoney_id anto@camelidcastle.hups.club`
-- App dir `/opt/pocketMoney`, service `pocketMoney`, deploy log
-  `/var/log/pocketMoney-deploy.log`.
-
-## Scheduled maintenance
-
-- `powerbank-policy-refresh` scheduled task (Claude routine): monthly on the 20th,
-  refreshes `frontend/src/powerbank.js` against current airline rules. Intended to
-  run only July & August 2026 — delete after the August run.
-- Power bank data reflects the **ICAO global standard effective 27 Mar 2026** (max 2
-  power banks, cabin-only, no in-flight use/charging).
+`pocketMoney` system user, `/opt/pocketMoney`, the systemd service, and Apache
+vhost. A push to `main` can trigger redeploy via the `/deploy` webhook
+(HMAC-signed, `DEPLOY_SECRET`) which touches `.deploy-trigger`; a systemd path
+unit runs `deploy.sh --update` (git pull → npm build → alembic upgrade →
+service restart). Deploy logs: `/var/log/pocketMoney-deploy.log`.
 
 ## Conventions / gotchas
 
-- `SPEC.md` holds the original product spec + data model reference (note: predates
-  email ingestion — `PendingChange`, `IngestedEmail`, `UserImportToken`, and the
-  ingest/pending/me routers are not reflected there).
-- The compiled `backend/static/` bundle is committed — always rebuild before commit.
-- JSON `details` edits need `flag_modified` server-side (already handled in
-  `routers/items.py`).
+- Money is integer cents everywhere in the backend and API; only the frontend
+  formats for display (`currency.js`).
+- The transaction ledger is append-only: corrections are new adjustment rows,
+  never edits — this is what makes balances auditable.
+- Claims are immutable after resolution; "editing" an approved claim means
+  rejecting/reversing and re-lodging.
+- JSON column edits need `flag_modified` server-side (SQLAlchemy doesn't detect
+  in-place mutation of JSON values).
 - Tests: `tests/` (pytest backend), `frontend/src/*.test.{js,jsx}` (vitest).
