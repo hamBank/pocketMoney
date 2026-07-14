@@ -8,9 +8,24 @@ A family pocket money / chore web app. A FastAPI + SQL backend serves a REST API
 **and** the compiled React SPA from the same origin. Administrator Users create 
 chores, which may have a re-occuring schedule, 
 
-Stops → Itinerary Items**, with rich per-kind detail (flights, rail, hotels,
-activities, etc.), multi-currency cost tracking, Google Sheets import, and
-email ingestion of booking confirmations (parsed by Claude).
+Chores are a reccuring item with a schedule, value and other configuration options. Users
+can 'claim' a chore is done, which routes the claim for approval by an administrator.
+Claims when approved will increment an amount of money into a users 'account'
+Administrators can add / modify / remove chores. 
+Administrators can approve, modify or reject a claim.
+Administrators can lodge and approve a claim on behalf of a user.
+Administrators can lodge a on-off chore/claim against a user, optionally creating it as an 
+on-going claim as part of the process
+Administrators can arbitrarly edit a users balence.
+Administrators can lodge a 'penalty' claim with a negative balance.
+
+For all claims we need to log:
+- who submitted the claim
+- the user who the claim applies to
+- when the claim was submitted
+- the original values of the claim
+- when it was approved
+- the final approved value (which may have been edited by an administrator during approval)
 
 - **Repo:** `https://github.com/hamBank/pocketMoney.git` (default branch `main`)
 - **Local root:** `F:\Users\foobi\Downloads\pocketMoney\`
