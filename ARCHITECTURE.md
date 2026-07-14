@@ -62,7 +62,8 @@ backend/
   static/            # compiled frontend output — served at /
 alembic/             # migration scripts
 scripts/
-  send_admin_digest.py       # cron (daily): email admins pending-claim digest
+  send_admin_digest.py       # cron (daily): email admins pending claims +
+                             # that day's submitted/resolved claim activity
   apply_weekly_allowance.py  # cron (Mondays): idempotent allowance transactions
   seed_dev_data.py           # optional local fixtures (users, chores, claims)
 frontend/

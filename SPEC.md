@@ -135,8 +135,15 @@ email:
   currently claimable by them, derived from schedule + claim mode.
 - **Admins:** the app shows an **approval-due list** (pending claims queue),
   and a **once-per-day email digest** (cron-invoked,
-  `scripts/send_admin_digest.py`) summarising pending claims awaiting
-  approval. No email is sent when there is nothing pending.
+  `scripts/send_admin_digest.py`) containing:
+  - **Pending:** claims awaiting approval (user, chore/description, value,
+    submitted when)
+  - **Today's activity:** claims submitted and claims resolved that day —
+    who claimed what, approved/rejected by whom, and the approved value
+    (flagged when it differs from the claimed value)
+
+  "That day" = the 24h since the previous digest run. No email is sent when
+  there is nothing pending **and** there was no activity.
 
 Email goes out via SMTP (settings in server config, see
 [DEVELOPMENT.md](DEVELOPMENT.md) env vars).

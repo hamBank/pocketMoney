@@ -56,8 +56,9 @@ Allowlist management (who may sign in) lives under `PATCH /users` +
 | GET | `/{spa_path}` | public | Static mount serving the compiled SPA (catch-all → `index.html`) |
 
 Cron entry points (not HTTP): `scripts/send_admin_digest.py` (daily admin
-email of pending claims) and `scripts/apply_weekly_allowance.py` (Monday
-allowance run, idempotent per ISO week).
+email: pending claims + that day's submitted/approved claim activity) and
+`scripts/apply_weekly_allowance.py` (Monday allowance run, idempotent per
+ISO week).
 
 ## Conventions
 

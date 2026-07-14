@@ -75,8 +75,10 @@
 - [ ] `scripts/apply_weekly_allowance.py`: Monday run, one `allowance`
       transaction per user per ISO week (idempotent; tested for re-runs)
 - [ ] `backend/emails.py` SMTP sender (logs to stdout when unconfigured);
-      `scripts/send_admin_digest.py`: daily pending-claims digest to admin
-      emails, silent when queue is empty
+      `scripts/send_admin_digest.py`: daily digest to admin emails —
+      pending claims + claims submitted/resolved since the previous run
+      (approved values flagged when edited); silent when there is nothing
+      pending and no activity
 
 **Exit:** allowances land every Monday; parents get the daily email.
 
