@@ -4,6 +4,11 @@
 #   sudo ./deploy.sh            # full provision (packages, user, db, units, vhost)
 #   sudo ./deploy.sh --update   # code update only (used by the webhook path unit)
 #
+# The repo is private and cloned over SSH with a read-only deploy key:
+#   sudo -u pocketMoney ssh-keygen -t ed25519 -N "" -f /home/pocketMoney/.ssh/id_ed25519
+# and add the .pub as a Deploy Key (no write access) on the GitHub repo
+# BEFORE the first run.
+#
 # After first provision:
 #   1. Fill in /opt/pocketMoney/.env  (see .env.example)
 #   2. certbot --apache -d pmoney.hups.club
@@ -12,7 +17,7 @@
 set -euo pipefail
 
 APP_DIR=/opt/pocketMoney
-REPO_URL=https://github.com/hamBank/pocketMoney.git
+REPO_URL=git@github.com:hamBank/pocketMoney.git
 APP_USER=pocketMoney
 SERVICE=pmoney
 LOG=/var/log/pocketMoney-deploy.log
@@ -52,10 +57,24 @@ provision() {
     chown postgres:postgres /var/backups/pmoney
     touch "$LOG" && chown "$APP_USER" "$LOG"
 
+    log "github ssh access (deploy key)"
+    APP_HOME=$(getent passwd "$APP_USER" | cut -d: -f6)
+    sudo -u "$APP_USER" mkdir -p "$APP_HOME/.ssh"
+    if [ ! -f "$APP_HOME/.ssh/id_ed25519" ]; then
+        log "ERROR: no deploy key at $APP_HOME/.ssh/id_ed25519 — see header of deploy.sh"
+        exit 1
+    fi
+    if ! sudo -u "$APP_USER" grep -qs "^github.com" "$APP_HOME/.ssh/known_hosts"; then
+        ssh-keyscan -t ed25519,rsa github.com 2>/dev/null |
+            sudo -u "$APP_USER" tee -a "$APP_HOME/.ssh/known_hosts" >/dev/null
+    fi
+
     log "clone/update repo"
     if [ ! -d "$APP_DIR/.git" ]; then
         sudo -u "$APP_USER" git clone "$REPO_URL" "$APP_DIR"
     fi
+    # Older checkouts may still have the HTTPS remote — converge on SSH.
+    sudo -u "$APP_USER" git -C "$APP_DIR" remote set-url origin "$REPO_URL"
 
     log "venv"
     [ -d "$APP_DIR/.venv" ] || sudo -u "$APP_USER" python3 -m venv "$APP_DIR/.venv"

@@ -16,6 +16,22 @@
   pending claims) and `scripts/apply_weekly_allowance.py` (Mondays —
   idempotent allowance transactions).
 
+## Repo access (deploy key)
+
+The repo is **private**; the server clones it over SSH with a read-only
+deploy key belonging to the `pocketMoney` system user:
+
+```bash
+sudo -u pocketMoney ssh-keygen -t ed25519 -N "" -f /home/pocketMoney/.ssh/id_ed25519
+sudo -u pocketMoney cat /home/pocketMoney/.ssh/id_ed25519.pub
+```
+
+Add the printed public key under **repo → Settings → Deploy keys** with
+write access **off**, *before* the first `deploy.sh` run. `deploy.sh`
+verifies the key exists, seeds `known_hosts` via `ssh-keyscan`, and
+converges any older HTTPS checkout onto the SSH remote
+(`git@github.com:hamBank/pocketMoney.git`).
+
 ## Provisioning — `deploy.sh`
 
 Idempotent script that:
