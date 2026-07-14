@@ -242,45 +242,54 @@ export default function ChoreManager({ symbol }) {
         </div>
       </form>
 
-      <ul className="space-y-2">
-        {chores.map((chore) => (
-          <li
-            key={chore.id}
-            className={`flex items-center justify-between rounded-xl bg-card p-4 shadow ${
-              chore.is_active ? '' : 'opacity-60'
-            }`}
-          >
-            <div>
-              <p className="font-semibold text-ink">
-                {chore.name}
-                {!chore.is_active && (
-                  <span className="ml-2 rounded bg-soft px-1.5 py-0.5 text-xs">
-                    inactive
-                  </span>
-                )}
-              </p>
-              <p className="text-xs text-ink-faint">
-                {chore.schedule} · {chore.claim_mode} ·{' '}
-                {formatCents(chore.value, symbol)}
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => startEdit(chore)}
-                className="rounded border border-edge px-3 py-1 text-sm text-ink-muted"
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => setActive(chore, !chore.is_active)}
-                className="rounded border border-edge px-3 py-1 text-sm text-ink-muted"
-              >
-                {chore.is_active ? 'Deactivate' : 'Reactivate'}
-              </button>
-            </div>
-          </li>
-        ))}
-      </ul>
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-ink-muted">
+        Existing chores
+      </h2>
+      {chores.length === 0 ? (
+        <p className="text-sm text-ink-faint">
+          No chores yet — create one above and it will show up here for editing.
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {chores.map((chore) => (
+            <li
+              key={chore.id}
+              className={`flex items-center justify-between rounded-xl bg-card p-4 shadow ${
+                chore.is_active ? '' : 'opacity-60'
+              }`}
+            >
+              <div>
+                <p className="font-semibold text-ink">
+                  {chore.name}
+                  {!chore.is_active && (
+                    <span className="ml-2 rounded bg-soft px-1.5 py-0.5 text-xs">
+                      inactive
+                    </span>
+                  )}
+                </p>
+                <p className="text-xs text-ink-faint">
+                  {chore.schedule} · {chore.claim_mode} ·{' '}
+                  {formatCents(chore.value, symbol)}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => startEdit(chore)}
+                  className="rounded border border-edge px-3 py-1 text-sm text-ink-muted"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => setActive(chore, !chore.is_active)}
+                  className="rounded border border-edge px-3 py-1 text-sm text-ink-muted"
+                >
+                  {chore.is_active ? 'Deactivate' : 'Reactivate'}
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }
