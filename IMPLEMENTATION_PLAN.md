@@ -37,14 +37,15 @@
 
 ## Phase 2 — Chores
 
-- [ ] `chore` table + migration (schedule, claim_mode, cooldown, assignees)
-- [ ] `backend/schedule.py`: period calculation (daily/weekly/monthly/none)
+- [x] `chore` table + migration (schedule, claim_mode, cooldown, assignees)
+- [x] `backend/schedule.py`: period calculation (daily/weekly/monthly/none)
       and `is_claimable(chore, user, now)` implementing the three claim
-      modes from claim history — **pure functions, heavily unit-tested**
-      (this is the trickiest logic in the app; build it before the UI)
-- [ ] `/chores` CRUD router; list returns computed `claimable` per user
-- [ ] Frontend: `ChoreManager` (admin CRUD) and `ChoreList` (kid "chores
-      due" view with claim button, disabled until claimable)
+      modes from claim history — pure functions, 30 unit tests (UTC day
+      boundaries for now; family-timezone setting can shift them later)
+- [x] `/chores` CRUD router; list returns computed `claimable` per user
+      (claim history stubbed empty until the claim table lands in Phase 3)
+- [x] Frontend: `ChoreManager` (admin CRUD) and `ChoreList` (kid "chores
+      due" view; claim button enabled in Phase 3)
 
 **Exit:** admins define chores; kids see a correct chores-due list per mode.
 

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { getAuthConfig, getMe, getToken, setToken } from './api'
 import { formatCents } from './currency'
+import ChoreList from './components/ChoreList'
+import ChoreManager from './components/ChoreManager'
 import LoginPage from './components/LoginPage'
 
 function Centered({ children }) {
@@ -16,6 +18,7 @@ export default function App() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [tab, setTab] = useState('chores')
 
   useEffect(() => {
     ;(async () => {
@@ -68,16 +71,38 @@ export default function App() {
           </button>
         </div>
       </header>
-      <main className="mx-auto max-w-3xl p-6">
+      <main className="mx-auto max-w-3xl space-y-6 p-6">
         <div className="rounded-xl bg-white p-6 shadow">
           <p className="text-sm text-slate-500">Balance</p>
           <p className="text-3xl font-bold text-slate-800">
             {formatCents(user.balance, symbol)}
           </p>
-          <p className="mt-4 text-sm text-slate-400">
-            Chores arrive in Phase 2 — see IMPLEMENTATION_PLAN.md.
-          </p>
         </div>
+        {user.role === 'admin' && (
+          <nav className="flex gap-2">
+            {[
+              ['chores', 'Chores'],
+              ['manage', 'Manage chores'],
+            ].map(([key, title]) => (
+              <button
+                key={key}
+                onClick={() => setTab(key)}
+                className={`rounded px-3 py-1 text-sm ${
+                  tab === key
+                    ? 'bg-slate-800 text-white'
+                    : 'bg-white text-slate-600 shadow'
+                }`}
+              >
+                {title}
+              </button>
+            ))}
+          </nav>
+        )}
+        {tab === 'manage' && user.role === 'admin' ? (
+          <ChoreManager symbol={symbol} />
+        ) : (
+          <ChoreList symbol={symbol} />
+        )}
       </main>
     </div>
   )

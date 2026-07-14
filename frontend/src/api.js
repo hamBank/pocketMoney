@@ -40,6 +40,16 @@ export const loginWithGoogle = (credential) =>
   apiFetch('/auth/google', { method: 'POST', body: { credential } })
 export const getMe = () => apiFetch('/auth/me')
 
+// Chores
+export const listChores = (all = false) =>
+  apiFetch(all ? '/chores?all=true' : '/chores')
+export const createChore = (data) =>
+  apiFetch('/chores', { method: 'POST', body: data })
+export const updateChore = (id, data) =>
+  apiFetch(`/chores/${id}`, { method: 'PATCH', body: data })
+export const deactivateChore = (id) =>
+  apiFetch(`/chores/${id}`, { method: 'DELETE' })
+
 // Users (admin)
 export const listUsers = () => apiFetch('/users')
 export const inviteUser = (data) =>
