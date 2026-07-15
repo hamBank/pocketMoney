@@ -1,15 +1,26 @@
 import { useEffect, useState } from 'react'
-import { approveClaim, createClaim, listClaims, listUsers, rejectClaim } from '../api'
+import {
+  approveClaim,
+  createClaim,
+  listChores,
+  listClaims,
+  listUsers,
+  rejectClaim,
+} from '../api'
 import { formatCents } from '../currency'
 
 export default function ApprovalQueue({ symbol, onChanged }) {
   const [claims, setClaims] = useState(null)
   const [users, setUsers] = useState([])
+  const [chores, setChores] = useState([])
   const [error, setError] = useState(null)
 
   const refresh = () => {
     listClaims({ status_filter: 'pending' }).then(setClaims).catch((e) => setError(e.message))
     listUsers().then(setUsers).catch(() => setUsers([]))
+    listChores(true)
+      .then((all) => setChores(all.filter((c) => c.is_active)))
+      .catch(() => setChores([]))
   }
 
   useEffect(() => {
@@ -40,7 +51,7 @@ export default function ApprovalQueue({ symbol, onChanged }) {
           </ul>
         )}
       </section>
-      <LodgeClaimForm users={users} symbol={symbol} onLodged={acted} />
+      <LodgeClaimForm users={users} chores={chores} symbol={symbol} onLodged={acted} />
     </div>
   )
 }
@@ -115,31 +126,45 @@ function PendingClaim({ claim, symbol, onActed }) {
   )
 }
 
-function LodgeClaimForm({ users, symbol, onLodged }) {
-  const [form, setForm] = useState({
-    user_id: '',
-    name: '',
-    valueText: '',
-    penalty: false,
-    auto_approve: true,
-    create_chore: false,
-  })
+const EMPTY_LODGE_FORM = {
+  chore_id: '',
+  user_id: '',
+  name: '',
+  valueText: '',
+  penalty: false,
+  auto_approve: true,
+  create_chore: false,
+}
+
+function LodgeClaimForm({ users, chores, symbol, onLodged }) {
+  const [form, setForm] = useState(EMPTY_LODGE_FORM)
   const [error, setError] = useState(null)
+  const existingChore = form.chore_id
+    ? chores.find((c) => String(c.id) === form.chore_id)
+    : null
 
   const submit = async (event) => {
     event.preventDefault()
     setError(null)
-    const cents = Math.round(parseFloat(form.valueText || '0') * 100)
     try {
-      await createClaim({
-        kind: form.penalty ? 'penalty' : 'adhoc',
-        user_id: Number(form.user_id),
-        name: form.name.trim(),
-        value: form.penalty ? -Math.abs(cents) : Math.abs(cents),
-        auto_approve: form.auto_approve,
-        create_chore: form.create_chore && !form.penalty,
-      })
-      setForm({ ...form, name: '', valueText: '' })
+      if (existingChore) {
+        await createClaim({
+          chore_id: existingChore.id,
+          user_id: Number(form.user_id),
+          auto_approve: form.auto_approve,
+        })
+      } else {
+        const cents = Math.round(parseFloat(form.valueText || '0') * 100)
+        await createClaim({
+          kind: form.penalty ? 'penalty' : 'adhoc',
+          user_id: Number(form.user_id),
+          name: form.name.trim(),
+          value: form.penalty ? -Math.abs(cents) : Math.abs(cents),
+          auto_approve: form.auto_approve,
+          create_chore: form.create_chore && !form.penalty,
+        })
+      }
+      setForm({ ...EMPTY_LODGE_FORM, user_id: form.user_id })
       onLodged()
     } catch (e) {
       setError(e.message)
@@ -149,7 +174,7 @@ function LodgeClaimForm({ users, symbol, onLodged }) {
   const input = 'rounded border border-edge px-2 py-1 text-sm'
   return (
     <form onSubmit={submit} className="space-y-3 rounded-xl bg-card p-4 shadow">
-      <h2 className="font-semibold text-ink">Lodge a one-off</h2>
+      <h2 className="font-semibold text-ink">Lodge a claim</h2>
       <div className="flex flex-wrap items-center gap-2">
         <select
           required
@@ -164,33 +189,52 @@ function LodgeClaimForm({ users, symbol, onLodged }) {
             </option>
           ))}
         </select>
-        <input
-          required
-          placeholder="What for?"
-          className={`${input} flex-1`}
-          value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-        />
-        <input
-          required
-          type="number"
-          step="0.01"
-          min="0.01"
-          placeholder={symbol}
-          className={`${input} w-24`}
-          value={form.valueText}
-          onChange={(e) => setForm({ ...form, valueText: e.target.value })}
-        />
+        <select
+          className={input}
+          value={form.chore_id}
+          onChange={(e) => setForm({ ...form, chore_id: e.target.value })}
+          title="Pick an existing chore to sign it off directly, or leave as Custom for a one-off"
+        >
+          <option value="">Custom (one-off)…</option>
+          {chores.map((chore) => (
+            <option key={chore.id} value={chore.id}>
+              {chore.name} ({formatCents(chore.value, symbol)})
+            </option>
+          ))}
+        </select>
       </div>
-      <div className="flex flex-wrap gap-4 text-sm text-ink-muted">
-        <label className="flex items-center gap-1">
+      {!existingChore && (
+        <div className="flex flex-wrap items-center gap-2">
           <input
-            type="checkbox"
-            checked={form.penalty}
-            onChange={(e) => setForm({ ...form, penalty: e.target.checked })}
+            required
+            placeholder="What for?"
+            className={`${input} flex-1`}
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
           />
-          Penalty (deducts)
-        </label>
+          <input
+            required
+            type="number"
+            step="0.01"
+            min="0.01"
+            placeholder={symbol}
+            className={`${input} w-24`}
+            value={form.valueText}
+            onChange={(e) => setForm({ ...form, valueText: e.target.value })}
+          />
+        </div>
+      )}
+      <div className="flex flex-wrap gap-4 text-sm text-ink-muted">
+        {!existingChore && (
+          <label className="flex items-center gap-1">
+            <input
+              type="checkbox"
+              checked={form.penalty}
+              onChange={(e) => setForm({ ...form, penalty: e.target.checked })}
+            />
+            Penalty (deducts)
+          </label>
+        )}
         <label className="flex items-center gap-1">
           <input
             type="checkbox"
@@ -199,7 +243,7 @@ function LodgeClaimForm({ users, symbol, onLodged }) {
           />
           Approve immediately
         </label>
-        {!form.penalty && (
+        {!existingChore && !form.penalty && (
           <label className="flex items-center gap-1">
             <input
               type="checkbox"
@@ -215,7 +259,7 @@ function LodgeClaimForm({ users, symbol, onLodged }) {
         type="submit"
         className="rounded bg-ink px-4 py-1.5 text-sm font-semibold text-page hover:opacity-90"
       >
-        Lodge
+        {existingChore && form.auto_approve ? 'Sign off' : 'Lodge'}
       </button>
     </form>
   )
