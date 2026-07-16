@@ -50,7 +50,9 @@ admin — never set in production.
 | `ALLOWED_EMAILS` | — | comma-separated bootstrap allowlist (first admin) |
 | `DEPLOY_SECRET` | — | HMAC key for `/deploy` webhook |
 | `CURRENCY_SYMBOL` | `$` | display only |
-| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASSWORD` / `SMTP_FROM` | — | admin daily digest email; unset locally = digest logs to stdout |
+| `SMTP_HOST` / `SMTP_PORT` | `smtp.gmail.com` / `587` | Gmail SMTP relay for the admin digest |
+| `SMTP_USER` / `SMTP_PASSWORD` | — | Gmail address + App Password (see DEPLOYMENT.md); unset `SMTP_USER` = digest logs to stdout |
+| `SMTP_FROM` | — | optional display `From:`; defaults to `SMTP_USER` |
 
 ## Tests
 
