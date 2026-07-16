@@ -83,13 +83,44 @@ the web app itself needing any.
 No client secret is required anywhere: the backend only *verifies* Google's
 ID tokens against the client ID.
 
+## Gmail App Password setup (one-time, manual)
+
+The admin daily digest (`scripts/send_admin_digest.py`) sends through Gmail's
+SMTP relay. This is a **separate** Google credential from `GOOGLE_CLIENT_ID`
+above — it authenticates the *server* to send mail, not a user signing in.
+Any Gmail address works, including one dedicated just for this (recommended,
+so a personal inbox's password never lives in `.env`).
+
+1. On that Gmail account: **Google Account → Security → 2-Step Verification**
+   — must be turned on; App Passwords aren't offered without it.
+2. **Google Account → Security → App passwords** (search "App passwords" if
+   the link isn't visible) → create one, name it "Pocket Money" → copy the
+   16-character password shown (spaces don't matter, Google ignores them).
+3. In `/opt/pocketMoney/.env`:
+   ```
+   SMTP_USER=that-address@gmail.com
+   SMTP_PASSWORD=the 16-character app password
+   ```
+   `SMTP_HOST`/`SMTP_PORT` already default to `smtp.gmail.com`/`587` — no
+   need to set them unless using a different provider. `SMTP_FROM` is
+   optional (defaults to `SMTP_USER`); set it to e.g.
+   `Pocket Money <that-address@gmail.com>` for a friendlier display name.
+4. `sudo systemctl restart pmoney`, then trigger a digest run manually to
+   confirm delivery: `sudo -u pocketMoney bash -c 'set -a && source .env &&
+   .venv/bin/python scripts/send_admin_digest.py'`.
+
+A regular Gmail password will **not** work here (Google rejects it) — it
+must be an App Password. Leaving `SMTP_USER` unset is fine too: the digest
+just prints to the service log (`journalctl -u pmoney`) instead of emailing.
+
 ## Configuration
 
 Environment for the service lives in `/opt/pocketMoney/.env` (loaded by the
 systemd unit; not in the repo): `DATABASE_URL`, `GOOGLE_CLIENT_ID`,
 `JWT_SECRET`, `ALLOWED_EMAILS`, `DEPLOY_SECRET`, `CURRENCY_SYMBOL`, plus
-SMTP settings for the admin digest (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`,
-`SMTP_PASSWORD`, `SMTP_FROM`).
+Gmail SMTP settings for the admin digest (`SMTP_HOST`, `SMTP_PORT`,
+`SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` — see Gmail App Password setup
+above).
 
 ## Logs & operations
 

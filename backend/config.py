@@ -12,8 +12,10 @@ class Settings(BaseSettings):
     deploy_secret: str = ""
     deploy_trigger_path: str = ".deploy-trigger"
     currency_symbol: str = "$"
-    # SMTP for the admin daily digest; unset host = log emails to stdout.
-    smtp_host: str = ""
+    # Gmail SMTP relay for the admin daily digest (see DEPLOYMENT.md for
+    # App Password setup); unset smtp_user = log emails to stdout instead
+    # of sending, so local dev and tests never need real credentials.
+    smtp_host: str = "smtp.gmail.com"
     smtp_port: int = 587
     smtp_user: str = ""
     smtp_password: str = ""
