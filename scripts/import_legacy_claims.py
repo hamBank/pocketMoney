@@ -63,6 +63,11 @@ Usage:
     python scripts/import_legacy_claims.py --input export.txt \\
         --user-email kid@example.com --admin-email parent@example.com \\
         --name-map "Zinnia=other-kid@example.com" --commit
+
+Times in the export (and --default-time) are local wall-clock times in
+--timezone (default Australia/Canberra, matching SHEET_TIMEZONE's
+default); they are converted to UTC before being stored, like every
+other timestamp in the database.
 """
 
 import argparse
@@ -70,6 +75,7 @@ import pathlib
 import sys
 from collections import defaultdict
 from datetime import datetime, time
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
@@ -87,9 +93,10 @@ from backend.models import (  # noqa: E402
     User,
 )
 from backend.database import engine  # noqa: E402
-from backend.legacy_import import parse_legacy_export  # noqa: E402
+from backend.legacy_import import local_to_utc, parse_legacy_export  # noqa: E402
 
 PLACEHOLDER_EMAIL = "unassigned@legacy-import.local"
+DEFAULT_TIMEZONE = "Australia/Canberra"
 
 
 def tag_for(entry, index: int) -> str:
@@ -150,6 +157,12 @@ def main() -> None:
         help="HH:MM used for entries with no explicit 'Checked @time' (default: noon)",
     )
     parser.add_argument(
+        "--timezone",
+        default=DEFAULT_TIMEZONE,
+        help=f"IANA zone the export's times are in, converted to UTC for storage "
+        f"(default: {DEFAULT_TIMEZONE})",
+    )
+    parser.add_argument(
         "--no-create-chores",
         action="store_true",
         help="old behaviour: import as ad-hoc claims only, never create/touch Chore rows",
@@ -160,6 +173,10 @@ def main() -> None:
     default_hour, default_minute = (int(x) for x in args.default_time.split(":"))
     name_map = parse_name_map(args.name_map)
     create_chores = not args.no_create_chores
+    try:
+        tz = ZoneInfo(args.timezone)
+    except (ZoneInfoNotFoundError, ValueError):
+        raise SystemExit(f"Unknown --timezone {args.timezone!r} (expected an IANA name like {DEFAULT_TIMEZONE!r})")
 
     text = pathlib.Path(args.input).read_text()
     entries = parse_legacy_export(text)
@@ -215,7 +232,8 @@ def main() -> None:
             check_email(target_email)
             if create_chores:
                 check_chore(entry.chore_name)
-            timestamp = entry.checked_at or datetime.combine(entry.date, time(default_hour, default_minute))
+            wall_clock = entry.checked_at or datetime.combine(entry.date, time(default_hour, default_minute))
+            timestamp = local_to_utc(wall_clock, tz)
             tag = tag_for(entry, index)
             already_imported = session.exec(select(Claim).where(Claim.original_note == tag)).first()
             planned.append((entry, target_email, timestamp, tag, already_imported))
@@ -236,12 +254,12 @@ def main() -> None:
             for name, label in sorted(chore_report_cache.items()):
                 print(f"  {name:<20} {label} (value ${chore_values[name] / 100:.2f}, schedule=none, per_user)")
 
-        print(f"\n{'Date':<12} {'Chore':<20} {'To':<32} {'Amount':>8}  {'Timestamp'}")
+        print(f"\n{'Date':<12} {'Chore':<20} {'To':<32} {'Amount':>8}  {'Timestamp (' + args.timezone + ')'}")
         totals: dict[str, int] = {}
         for entry, target_email, timestamp, tag, _ in to_create:
             print(
                 f"{entry.date.isoformat():<12} {entry.chore_name:<20} {report_cache[target_email]:<32} "
-                f"${entry.value_cents / 100:>6.2f}  {timestamp.isoformat(timespec='minutes')}"
+                f"${entry.value_cents / 100:>6.2f}  {timestamp.astimezone(tz).isoformat(timespec='minutes')}"
                 + ("  (default time)" if entry.checked_at is None else "")
             )
             totals[target_email] = totals.get(target_email, 0) + entry.value_cents
