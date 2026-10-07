@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlmodel import Session
 
@@ -6,7 +6,7 @@ from backend.database import engine
 from backend.digest import build_digest, send_admin_digest
 from backend.models import Chore, Claim, ClaimKind, ClaimStatus, User, UserRole
 
-NOW = datetime(2026, 7, 15, 18, 0)
+NOW = datetime(2026, 7, 15, 18, 0, tzinfo=timezone.utc)
 SINCE = NOW - timedelta(hours=24)
 
 

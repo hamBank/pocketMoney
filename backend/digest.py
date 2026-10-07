@@ -1,7 +1,7 @@
 """Admin daily digest: pending claims + the day's claim activity (SPEC.md).
 "The day" is the 24h before `now` — matching the daily cron cadence."""
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlmodel import Session, select
 
@@ -30,14 +30,16 @@ def _user_name(session: Session, user_id: int | None) -> str:
     return (user.name or user.email) if user else f"user {user_id}"
 
 
-def _naive(dt: datetime) -> datetime:
-    return dt.replace(tzinfo=None) if dt.tzinfo is not None else dt
+def _utc(dt: datetime) -> datetime:
+    # sqlmodel rejects naive datetimes in queries; SQLite may still hand
+    # back naive values, which are UTC like everything stored.
+    return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt.astimezone(timezone.utc)
 
 
 def build_digest(session: Session, since: datetime, now: datetime) -> str | None:
     """The digest body, or None when there is nothing pending AND no
     activity in the window — the caller then sends no email."""
-    since, now = _naive(since), _naive(now)
+    since, now = _utc(since), _utc(now)
     pending = session.exec(
         select(Claim).where(Claim.status == ClaimStatus.pending).order_by(Claim.submitted_at)
     ).all()
@@ -51,7 +53,7 @@ def build_digest(session: Session, since: datetime, now: datetime) -> str | None
             .where(Claim.resolved_at != None)  # noqa: E711
             .order_by(Claim.resolved_at)
         ).all()
-        if _naive(c.resolved_at) >= since
+        if _utc(c.resolved_at) >= since
         and c.status in (ClaimStatus.approved, ClaimStatus.rejected)
     ]
     if not pending and not submitted and not resolved:
@@ -64,7 +66,7 @@ def build_digest(session: Session, since: datetime, now: datetime) -> str | None
             lines.append(
                 f"  - {_user_name(session, claim.user_id)}: {_label(session, claim)}"
                 f" ({_money(claim.original_value)})"
-                f" — submitted {_naive(claim.submitted_at):%a %d %b %H:%M}"
+                f" — submitted {_utc(claim.submitted_at):%a %d %b %H:%M}"
             )
         lines.append("")
 
