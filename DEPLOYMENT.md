@@ -14,7 +14,10 @@
 - **DB:** Postgres, database `pmoney` (local to the server).
 - **Cron:** `scripts/send_admin_digest.py` (daily — admin email digest of
   pending claims) and `scripts/apply_weekly_allowance.py` (Mondays —
-  idempotent allowance transactions).
+  idempotent allowance transactions), installed from
+  `deploy/pocketmoney.cron` to `/etc/cron.d/pocketmoney` by `deploy.sh`.
+  Cron doesn't read the systemd unit's `EnvironmentFile`, so each job
+  sources `.env` itself; output goes to `/var/log/pocketMoney-cron.log`.
 
 ## Repo access (deploy key)
 
@@ -99,12 +102,14 @@ so a personal inbox's password never lives in `.env`).
 3. In `/opt/pocketMoney/.env`:
    ```
    SMTP_USER=that-address@gmail.com
-   SMTP_PASSWORD=the 16-character app password
+   SMTP_PASSWORD="the 16-character app password"
    ```
    `SMTP_HOST`/`SMTP_PORT` already default to `smtp.gmail.com`/`587` — no
    need to set them unless using a different provider. `SMTP_FROM` is
    optional (defaults to `SMTP_USER`); set it to e.g.
-   `Pocket Money <that-address@gmail.com>` for a friendlier display name.
+   `SMTP_FROM="Pocket Money <that-address@gmail.com>"` for a friendlier
+   display name. Quote any value containing spaces or `<>` (see
+   Configuration below).
 4. `sudo systemctl restart pmoney`, then trigger a digest run manually to
    confirm delivery: `sudo -u pocketMoney bash -c 'set -a && source .env &&
    .venv/bin/python scripts/send_admin_digest.py'`.
@@ -122,11 +127,18 @@ Gmail SMTP settings for the admin digest (`SMTP_HOST`, `SMTP_PORT`,
 `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` — see Gmail App Password setup
 above).
 
+The same file is also sourced by bash (`set -a && . ./.env`) in the cron
+jobs and `deploy.sh`, so it must be valid for both systemd and bash: plain
+`KEY=value` lines, no `export`, and **double-quote any value containing
+spaces or shell characters** (`SMTP_PASSWORD="abcd efgh ijkl mnop"`). An
+unquoted value with a space makes the cron jobs fail before they start.
+
 ## Logs & operations
 
 ```bash
 journalctl -u pmoney -f                      # app logs
 tail -f /var/log/pocketMoney-deploy.log      # deploy runs (timestamped headers)
+tail -f /var/log/pocketMoney-cron.log        # digest + weekly allowance runs
 systemctl restart pmoney                     # manual restart
 sudo -u postgres pg_dump pmoney > backup.sql # DB backup
 ```
