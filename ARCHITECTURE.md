@@ -4,7 +4,8 @@
 >
 > Companion docs: [SPEC.md](SPEC.md) (product spec), [DATA_MODEL.md](DATA_MODEL.md)
 > (tables & schemas), [API.md](API.md) (endpoints), [DEVELOPMENT.md](DEVELOPMENT.md)
-> (local dev workflow), [DEPLOYMENT.md](DEPLOYMENT.md) (server & deploy).
+> (local dev workflow), [DEPLOYMENT.md](DEPLOYMENT.md) (server & deploy),
+> [SHEETS_SETUP.md](SHEETS_SETUP.md) (Google Sheets ledger mirror setup).
 
 ## Overview
 

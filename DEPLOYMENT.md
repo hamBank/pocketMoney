@@ -116,43 +116,20 @@ just prints to the service log (`journalctl -u pmoney`) instead of emailing.
 ## Google Sheets ledger mirror setup (one-time, manual, optional)
 
 The app can mirror the ledger into a Google Sheet: one append-only tab per
-child plus a **Totals** tab (see SPEC.md). It authenticates as a Google
-Cloud **service account** — a robot Google identity, separate from both
-`GOOGLE_CLIENT_ID` and the Gmail App Password.
+child plus a **Totals** tab (see SPEC.md). It writes as a Google Cloud
+**service account** — a separate credential from both `GOOGLE_CLIENT_ID`
+and the Gmail App Password. Full step-by-step instructions (project, API,
+service account, JSON key, sharing, `.env`, backfill, troubleshooting, key
+rotation) are in **[SHEETS_SETUP.md](SHEETS_SETUP.md)**. In short:
 
-1. [Google Cloud Console](https://console.cloud.google.com/) → the same
-   project as the OAuth client is fine → **APIs & Services → Library** →
-   enable **Google Sheets API**.
-2. **IAM & Admin → Service Accounts → Create service account** (name it
-   "pocket-money-sheets"; no project roles needed) → open it → **Keys →
-   Add key → JSON** → download the key file.
-3. Copy it to the server, readable only by the app:
-   ```bash
-   sudo install -o pocketMoney -g pocketMoney -m 600 key.json \
-     /opt/pocketMoney/google-service-account.json
-   ```
-4. Create an empty Google Sheet, **Share** it with the service account's
-   email (`…@….iam.gserviceaccount.com`, shown on its page) as **Editor**.
-5. In `/opt/pocketMoney/.env`:
-   ```
-   GOOGLE_SHEET_ID=the long id between /d/ and /edit in the sheet's URL
-   GOOGLE_SERVICE_ACCOUNT_FILE=/opt/pocketMoney/google-service-account.json
-   SHEET_TIMEZONE=Australia/Canberra
-   ```
-   `SHEET_TIMEZONE` is any IANA zone name (default `Australia/Canberra`);
-   the app refuses to start with an unknown one.
-6. `sudo systemctl restart pmoney`, then backfill the full history now
-   rather than waiting for cron: `sudo -u pocketMoney bash -c 'set -a &&
-   source .env && .venv/bin/python scripts/sync_sheet.py'`.
-
-After that, every money change syncs within seconds, and the
-`*/10 * * * *` cron entry catches up anything missed (e.g. a Google
-outage — money writes never wait on or fail because of the sheet). Tabs
-are protected so only the service account (and the sheet's owner) can
-edit them; renaming tabs is safe. Delete the "Sheet1" tab Google creates if
-you like — the app ignores it. If the Totals "DB check" column ever shows
-✗, run the script above; a tab deleted by mistake is recreated and
-backfilled on the next sync.
+1. Enable the **Google Sheets API** in a Google Cloud project; create a
+   service account (no roles) and download a **JSON key**.
+2. Share a blank sheet with the service account's email as **Editor**.
+3. Install the key as `/opt/pocketMoney/google-service-account.json`
+   (owner `pocketMoney`, mode 600) and set `GOOGLE_SHEET_ID`,
+   `GOOGLE_SERVICE_ACCOUNT_FILE`, `SHEET_TIMEZONE` in `.env`.
+4. `sudo systemctl restart pmoney`, then backfill with
+   `scripts/sync_sheet.py`; the 10-minute cron keeps it caught up.
 
 ## Configuration
 
