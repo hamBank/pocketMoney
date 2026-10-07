@@ -111,6 +111,27 @@
 
 **Exit:** push to `main` auto-deploys; family onboarded.
 
+## Phase 7 — Google Sheets ledger mirror
+
+- [x] `backend/sheets.py`: Sheets v4 REST client on google-auth's
+      `AuthorizedSession` (service account); tabs found by developer
+      metadata, protected to the service account
+- [x] `backend/sheets_sync.py`: one tab per child, append-only rows with
+      running balance; the sheet's max Tx ID per tab is the high-water mark
+      (idempotent, self-healing, backfills on first run); Totals tab with
+      formula balances + DB check; dates in `SHEET_TIMEZONE`
+      (default `Australia/Canberra`, validated at startup)
+- [x] Background sync after claim approval / auto-approve and admin
+      transactions; after the allowance run; `scripts/sync_sheet.py` cron
+      every 10 min; file lock so runs never overlap; failures logged, never
+      block money writes
+- [x] Tests against an in-memory fake sheet (backfill, re-runs, renames,
+      new tabs, name clashes, DST/local-day boundaries, failure handling)
+- [ ] **(owner)** service account + shared sheet + `.env` (DEPLOYMENT.md),
+      run `scripts/sync_sheet.py` once to backfill
+
+**Exit:** every ledger entry appears in the family's Google Sheet.
+
 ## Sequencing notes
 
 - Phases are strictly ordered; within a phase, backend before frontend.

@@ -1,3 +1,6 @@
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -20,6 +23,23 @@ class Settings(BaseSettings):
     smtp_user: str = ""
     smtp_password: str = ""
     smtp_from: str = ""
+    # Google Sheets ledger mirror (see DEPLOYMENT.md for service-account
+    # setup); unset google_sheet_id = mirror disabled, so local dev and
+    # tests never need real credentials.
+    google_sheet_id: str = ""
+    google_service_account_file: str = ""
+    sheet_timezone: str = "Australia/Canberra"
+    sheet_lock_path: str = ".sheet-sync.lock"
+
+    @field_validator("sheet_timezone")
+    @classmethod
+    def _valid_timezone(cls, value: str) -> str:
+        # Fail at startup, not by writing wrong dates into the ledger.
+        try:
+            ZoneInfo(value)
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            raise ValueError(f"Unknown timezone {value!r}") from exc
+        return value
 
 
 settings = Settings()

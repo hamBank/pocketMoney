@@ -16,3 +16,7 @@ frontend/public/version.json
 
 # Local config
 .env
+
+# Google Sheets mirror: service-account key and sync lock
+google-service-account.json
+.sheet-sync.lock

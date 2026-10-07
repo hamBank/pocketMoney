@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
 from sqlalchemy import func
 from sqlmodel import Session, select
 
@@ -12,6 +12,7 @@ from ..models import (
     UserRole,
 )
 from ..permissions import require_admin_role, require_user_role
+from ..sheets_sync import run_sheet_sync
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
@@ -59,6 +60,7 @@ def list_transactions(
 @router.post("", response_model=TransactionRead, status_code=status.HTTP_201_CREATED)
 def create_transaction(
     body: TransactionCreate,
+    background_tasks: BackgroundTasks,
     session: Session = Depends(get_session),
     admin: User = Depends(require_admin_role),
 ):
@@ -84,4 +86,5 @@ def create_transaction(
     session.add(tx)
     session.commit()
     session.refresh(tx)
+    background_tasks.add_task(run_sheet_sync)  # after commit; never blocks the write
     return _to_read(session, tx)

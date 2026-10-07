@@ -15,12 +15,15 @@ from sqlmodel import Session  # noqa: E402
 
 from backend.allowance import apply_weekly_allowance  # noqa: E402
 from backend.database import engine  # noqa: E402
+from backend.sheets_sync import run_sheet_sync  # noqa: E402
 
 
 def main() -> None:
     with Session(engine) as session:
         created = apply_weekly_allowance(session)
     print(f"applied {len(created)} allowance transaction(s)")
+    if created:
+        run_sheet_sync()  # mirror to the Google Sheet now, not at next catch-up
 
 
 if __name__ == "__main__":
