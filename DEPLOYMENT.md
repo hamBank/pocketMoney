@@ -118,6 +118,24 @@ A regular Gmail password will **not** work here (Google rejects it) — it
 must be an App Password. Leaving `SMTP_USER` unset is fine too: the digest
 just prints to the service log (`journalctl -u pmoney`) instead of emailing.
 
+## Google Sheets ledger mirror setup (one-time, manual, optional)
+
+The app can mirror the ledger into a Google Sheet: one append-only tab per
+child plus a **Totals** tab (see SPEC.md). It writes as a Google Cloud
+**service account** — a separate credential from both `GOOGLE_CLIENT_ID`
+and the Gmail App Password. Full step-by-step instructions (project, API,
+service account, JSON key, sharing, `.env`, backfill, troubleshooting, key
+rotation) are in **[SHEETS_SETUP.md](SHEETS_SETUP.md)**. In short:
+
+1. Enable the **Google Sheets API** in a Google Cloud project; create a
+   service account (no roles) and download a **JSON key**.
+2. Share a blank sheet with the service account's email as **Editor**.
+3. Install the key as `/opt/pocketMoney/google-service-account.json`
+   (owner `pocketMoney`, mode 600) and set `GOOGLE_SHEET_ID`,
+   `GOOGLE_SERVICE_ACCOUNT_FILE`, `SHEET_TIMEZONE` in `.env`.
+4. `sudo systemctl restart pmoney`, then backfill with
+   `scripts/sync_sheet.py`; the 10-minute cron keeps it caught up.
+
 ## Configuration
 
 Environment for the service lives in `/opt/pocketMoney/.env` (loaded by the
@@ -125,7 +143,8 @@ systemd unit; not in the repo): `DATABASE_URL`, `GOOGLE_CLIENT_ID`,
 `JWT_SECRET`, `ALLOWED_EMAILS`, `DEPLOY_SECRET`, `CURRENCY_SYMBOL`, plus
 Gmail SMTP settings for the admin digest (`SMTP_HOST`, `SMTP_PORT`,
 `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` — see Gmail App Password setup
-above).
+above) and the optional Google Sheets mirror (`GOOGLE_SHEET_ID`,
+`GOOGLE_SERVICE_ACCOUNT_FILE`, `SHEET_TIMEZONE` — see above).
 
 The same file is also sourced by bash (`set -a && . ./.env`) in the cron
 jobs and `deploy.sh`, so it must be valid for both systemd and bash: plain

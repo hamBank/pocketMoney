@@ -11,5 +11,9 @@ SHELL=/bin/bash
 # Weekly allowance (Monday 06:00; idempotent per ISO week)
 0 6 * * 1 pocketMoney cd /opt/pocketMoney && set -a && . ./.env && set +a && .venv/bin/python scripts/apply_weekly_allowance.py >> /var/log/pocketMoney-cron.log 2>&1
 
+# Google Sheets ledger mirror catch-up (every 10 min; no-op when
+# GOOGLE_SHEET_ID is unset).
+*/10 * * * * pocketMoney cd /opt/pocketMoney && set -a && . ./.env && set +a && .venv/bin/python scripts/sync_sheet.py >> /var/log/pocketMoney-cron.log 2>&1
+
 # Nightly ledger backup (02:30) — 7-day rotation by weekday number
 30 2 * * * postgres pg_dump pmoney | gzip > /var/backups/pmoney/pmoney-$(date +\%u).sql.gz

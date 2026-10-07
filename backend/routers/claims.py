@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Response, status
 from sqlalchemy import func
 from sqlmodel import Session, select
 
@@ -21,6 +21,7 @@ from ..models import (
 )
 from ..permissions import require_admin_role, require_user_role
 from ..schedule import is_claimable
+from ..sheets_sync import run_sheet_sync
 from .chores import claim_records_for_chore
 
 router = APIRouter(prefix="/claims", tags=["claims"])
@@ -117,6 +118,7 @@ def list_claims(
 @router.post("", response_model=ClaimRead, status_code=status.HTTP_201_CREATED)
 def create_claim(
     body: ClaimCreate,
+    background_tasks: BackgroundTasks,
     session: Session = Depends(get_session),
     user: User = Depends(require_user_role),
 ):
@@ -147,6 +149,7 @@ def create_claim(
     if body.auto_approve:
         session.flush()  # claim needs an id for the transaction row
         _approve(session, claim, user, ClaimResolve())
+        background_tasks.add_task(run_sheet_sync)
     session.commit()
     session.refresh(claim)
     return _to_read(session, claim)
@@ -236,12 +239,14 @@ def _get_pending(session: Session, claim_id: int) -> Claim:
 def approve_claim(
     claim_id: int,
     body: ClaimResolve,
+    background_tasks: BackgroundTasks,
     session: Session = Depends(get_session),
     admin: User = Depends(require_admin_role),
 ):
     claim = _get_pending(session, claim_id)
     _approve(session, claim, admin, body)
     session.commit()
+    background_tasks.add_task(run_sheet_sync)
     session.refresh(claim)
     return _to_read(session, claim)
 

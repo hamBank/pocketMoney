@@ -148,6 +148,25 @@ email:
 Email goes out via SMTP (settings in server config, see
 [DEVELOPMENT.md](DEVELOPMENT.md) env vars).
 
+## Google Sheets ledger mirror
+
+Optionally (when `GOOGLE_SHEET_ID` is configured) the ledger is mirrored to
+a Google Sheet as a permanent, human-readable record. The database remains
+the source of truth; the sheet is written by the app only.
+
+- **One tab per child** (every `user`-role account, plus anyone else with
+  ledger entries). One row per transaction, appended and never edited:
+  Tx ID, Date (in `SHEET_TIMEZONE`, default `Australia/Canberra`), Type,
+  Description (chore/claim label + resolution note, or the transaction
+  note), Amount, running Balance, Recorded by, Claim ID.
+- **Totals tab**, rewritten each sync: per child the sheet balance (a
+  formula over their tab), the app's balance, a ✓/✗ "DB check" comparing
+  the two, earned this week (credits since Monday local time), spent this
+  month (withdrawals), last entry date and entry count.
+- Syncs after every money change and every 10 minutes by cron; idempotent
+  (each tab's highest Tx ID is the high-water mark), so the first run
+  backfills all history and a failed sync is simply retried.
+
 ## Money & currency
 
 Single currency for the whole app. Amounts are integer cents in storage and

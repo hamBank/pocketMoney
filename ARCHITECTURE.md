@@ -4,7 +4,8 @@
 >
 > Companion docs: [SPEC.md](SPEC.md) (product spec), [DATA_MODEL.md](DATA_MODEL.md)
 > (tables & schemas), [API.md](API.md) (endpoints), [DEVELOPMENT.md](DEVELOPMENT.md)
-> (local dev workflow), [DEPLOYMENT.md](DEPLOYMENT.md) (server & deploy).
+> (local dev workflow), [DEPLOYMENT.md](DEPLOYMENT.md) (server & deploy),
+> [SHEETS_SETUP.md](SHEETS_SETUP.md) (Google Sheets ledger mirror setup).
 
 ## Overview
 
@@ -53,6 +54,8 @@ backend/
   permissions.py     # require_admin_role / require_user_role dependencies
   schedule.py        # chore recurrence + claimability (per_user/shared/open modes)
   emails.py          # SMTP send + admin daily-digest composition
+  sheets.py          # Google Sheets REST client (service account)
+  sheets_sync.py     # ledger → Google Sheet mirror: tab per child + Totals
   routers/
     auth_router.py   # /auth/google, /auth/me, /auth/config
     chores.py        # /chores CRUD (admin) + listing (all users)
@@ -65,6 +68,7 @@ scripts/
   send_admin_digest.py       # cron (daily): email admins pending claims +
                              # that day's submitted/resolved claim activity
   apply_weekly_allowance.py  # cron (Mondays): idempotent allowance transactions
+  sync_sheet.py              # cron (every 10 min): Google Sheet ledger catch-up
   seed_dev_data.py           # optional local fixtures (users, chores, claims)
 frontend/
   src/
