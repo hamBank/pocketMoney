@@ -29,7 +29,8 @@ value (optionally followed by "Checked" + a time), or nothing at all
 
 import re
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timezone
+from zoneinfo import ZoneInfo
 
 MONTHS = {
     "JANUARY": 1,
@@ -70,7 +71,9 @@ class LegacyEntry:
     chore_name: str
     status: str  # "earned" | "expired" | "incomplete"
     value_cents: int | None  # None unless status == "earned"
-    checked_at: datetime | None  # set only when an explicit "Checked @time" was present
+    # Set only when an explicit "Checked @time" was present. Naive local
+    # wall-clock time, exactly as the old app showed it — see local_to_utc.
+    checked_at: datetime | None
     note: str | None  # e.g. "Zinnia" from an "(*Zinnia)" annotation
     raw: str  # original block text, for diagnosing "incomplete" entries
 
@@ -85,6 +88,12 @@ def _parse_time(day: date, line: str) -> datetime:
     if meridiem == "PM":
         hour += 12
     return datetime(day.year, day.month, day.day, hour, minute)
+
+
+def local_to_utc(wall_clock: datetime, tz: ZoneInfo) -> datetime:
+    """The export's naive times are the family's local wall clock (copied
+    from the old app's UI); the DB stores UTC-aware datetimes only."""
+    return wall_clock.replace(tzinfo=tz).astimezone(timezone.utc)
 
 
 def _parse_entry(day: date, block: str) -> LegacyEntry:
