@@ -1,12 +1,16 @@
-fastapi>=0.115
-uvicorn[standard]>=0.30
-sqlmodel>=0.0.22
-alembic>=1.13
-pydantic-settings>=2.3
-google-auth>=2.30
-requests>=2.31
-psycopg2-binary>=2.9
-PyJWT>=2.9
+# deploy.sh runs a fresh `pip install -r` on every push, so cap each dep
+# below its next breaking release; raise a cap deliberately, with CI.
+fastapi>=0.115,<1
+uvicorn[standard]>=0.30,<1
+# 0.0.x releases change behaviour: 0.0.48 made `datetime` fields timestamptz
+# and rejects naive values. The models/migrations assume exactly that.
+sqlmodel>=0.0.48,<0.0.49
+alembic>=1.13,<2
+pydantic-settings>=2.3,<3
+google-auth>=2.30,<3
+requests>=2.31,<3
+psycopg2-binary>=2.9,<3
+PyJWT>=2.9,<3
 tzdata>=2024.1  # IANA zones incl. aliases like Australia/Canberra, whatever the OS ships
-pytest>=8
-httpx>=0.27
+pytest>=8,<10
+httpx>=0.27,<0.29

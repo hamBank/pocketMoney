@@ -1,7 +1,7 @@
 # Pocket Money — Data Model
 
 > SQLModel tables in `backend/models.py`. Behaviour in [SPEC.md](SPEC.md).
-> All money fields are **integer cents**. All timestamps are UTC.
+> All money fields are **integer cents**. All timestamps are UTC, timezone-aware in Python (`timestamptz` on Postgres).
 
 ## Entity relationships
 
