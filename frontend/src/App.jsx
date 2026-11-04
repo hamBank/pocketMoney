@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { getAuthConfig, getMe, getToken, setToken } from './api'
+import { useCallback, useEffect, useState } from 'react'
+import { getAuthConfig, getMe, getToken, setToken, setUnauthorizedHandler } from './api'
 import { formatCents } from './currency'
 import ApprovalQueue from './components/ApprovalQueue'
 import ChoreList from './components/ChoreList'
@@ -24,6 +24,15 @@ export default function App() {
   const [error, setError] = useState(null)
   const [tab, setTab] = useState('chores')
   const [showSettings, setShowSettings] = useState(false)
+  const [sessionExpired, setSessionExpired] = useState(false)
+
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      setUser(null)
+      setSessionExpired(true)
+    })
+    return () => setUnauthorizedHandler(() => {})
+  }, [])
 
   useEffect(() => {
     ;(async () => {
@@ -47,13 +56,23 @@ export default function App() {
   const signOut = () => {
     setToken(null)
     setUser(null)
+    setSessionExpired(false)
   }
+
+  const signedIn = useCallback((signedInUser) => {
+    setSessionExpired(false)
+    setUser(signedInUser)
+  }, [])
 
   const refreshUser = () => getMe().then(setUser).catch(() => {})
 
   if (loading) return <Centered>Loading…</Centered>
   if (error) return <Centered>{error}</Centered>
-  if (!user) return <LoginPage config={config} onSignedIn={setUser} />
+  if (!user) {
+    return (
+      <LoginPage config={config} onSignedIn={signedIn} sessionExpired={sessionExpired} />
+    )
+  }
 
   const symbol = config.currency_symbol || '$'
   return (
