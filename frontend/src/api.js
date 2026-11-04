@@ -9,6 +9,24 @@ export function setToken(token) {
   else localStorage.removeItem(TOKEN_KEY)
 }
 
+// Called when a request carrying our token comes back 401 (expired, or the
+// account was deactivated) so the app can drop back to the login page.
+let onUnauthorized = () => {}
+export function setUnauthorizedHandler(handler) {
+  onUnauthorized = handler
+}
+
+// The backend swaps a token past half its life for a fresh one in this
+// header; a 401 on a request we sent a token with means the session is over.
+function trackSession(response, sentToken) {
+  const refreshed = response.headers.get('X-Refreshed-Token')
+  if (refreshed) setToken(refreshed)
+  if (response.status === 401 && sentToken) {
+    setToken(null)
+    onUnauthorized()
+  }
+}
+
 export async function apiFetch(path, { method = 'GET', body } = {}) {
   const headers = {}
   if (body !== undefined) headers['Content-Type'] = 'application/json'
@@ -20,6 +38,7 @@ export async function apiFetch(path, { method = 'GET', body } = {}) {
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   })
+  trackSession(response, token)
   if (!response.ok) {
     let detail
     try {
@@ -56,6 +75,7 @@ export async function apiFetchPaged(path) {
   const token = getToken()
   if (token) headers['Authorization'] = `Bearer ${token}`
   const response = await fetch(path, { headers })
+  trackSession(response, token)
   if (!response.ok) {
     let detail
     try {

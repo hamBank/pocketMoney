@@ -1,6 +1,16 @@
+from datetime import datetime, timedelta, timezone
+
+import jwt
 from conftest import auth_headers, fake_google, sign_in
 
+from backend.auth import REFRESHED_TOKEN_HEADER, TOKEN_LIFETIME
 from backend.config import settings
+
+
+def token_issued(user_id, ago):
+    """A token for user_id as if signed in `ago` before now."""
+    exp = datetime.now(timezone.utc) - ago + TOKEN_LIFETIME
+    return jwt.encode({"sub": str(user_id), "exp": exp}, settings.jwt_secret, algorithm="HS256")
 
 
 def test_first_signin_becomes_admin(client, monkeypatch):
@@ -35,6 +45,36 @@ def test_me_roundtrip(client, monkeypatch):
 def test_me_requires_token(client):
     assert client.get("/auth/me").status_code == 401
     assert client.get("/auth/me", headers=auth_headers("junk")).status_code == 401
+
+
+def test_fresh_token_is_not_refreshed(client, monkeypatch):
+    token = sign_in(client, monkeypatch, "parent@example.com")["token"]
+    me = client.get("/auth/me", headers=auth_headers(token))
+    assert me.status_code == 200
+    assert REFRESHED_TOKEN_HEADER not in me.headers
+
+
+def test_token_past_half_life_is_refreshed(client, monkeypatch):
+    user_id = sign_in(client, monkeypatch, "parent@example.com")["user"]["id"]
+    old = token_issued(user_id, ago=timedelta(days=20))
+    me = client.get("/auth/me", headers=auth_headers(old))
+    assert me.status_code == 200
+    fresh = me.headers[REFRESHED_TOKEN_HEADER]
+    exp = jwt.decode(fresh, settings.jwt_secret, algorithms=["HS256"])["exp"]
+    remaining = datetime.fromtimestamp(exp, timezone.utc) - datetime.now(timezone.utc)
+    assert remaining > TOKEN_LIFETIME - timedelta(minutes=1)
+    # Other endpoints refresh too, alongside their own headers.
+    listing = client.get("/claims", headers=auth_headers(old))
+    assert listing.status_code == 200
+    assert REFRESHED_TOKEN_HEADER in listing.headers
+
+
+def test_expired_token_is_401(client, monkeypatch):
+    user_id = sign_in(client, monkeypatch, "parent@example.com")["user"]["id"]
+    expired = token_issued(user_id, ago=TOKEN_LIFETIME + timedelta(minutes=1))
+    me = client.get("/auth/me", headers=auth_headers(expired))
+    assert me.status_code == 401
+    assert REFRESHED_TOKEN_HEADER not in me.headers
 
 
 def test_invited_user_signs_in_as_user_role(client, monkeypatch):

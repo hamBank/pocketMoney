@@ -3,7 +3,7 @@ import { loginWithGoogle, setToken } from '../api'
 
 const GSI_SRC = 'https://accounts.google.com/gsi/client'
 
-export default function LoginPage({ config, onSignedIn }) {
+export default function LoginPage({ config, onSignedIn, sessionExpired }) {
   const buttonRef = useRef(null)
   const [error, setError] = useState(
     config.google_client_id ? null : 'GOOGLE_CLIENT_ID is not configured',
@@ -42,6 +42,11 @@ export default function LoginPage({ config, onSignedIn }) {
       <div className="flex flex-col items-center gap-4 rounded-xl bg-card p-10 shadow">
         <h1 className="text-2xl font-bold text-ink">Pocket Money</h1>
         <p className="text-sm text-ink-muted">Sign in with your family Google account</p>
+        {sessionExpired && (
+          <p className="max-w-xs text-center text-sm text-ink-muted">
+            Your session expired — please sign in again.
+          </p>
+        )}
         <div ref={buttonRef} />
         {error && <p className="max-w-xs text-center text-sm text-red-600">{error}</p>}
       </div>

@@ -1,7 +1,7 @@
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Response, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
@@ -12,6 +12,10 @@ from .database import get_session
 from .models import User, UserRole, utcnow
 
 TOKEN_LIFETIME = timedelta(days=30)
+# Sliding session: a token past half its life is swapped for a fresh one on
+# the next authenticated request, so only 30 days of inactivity signs you out.
+REFRESH_AFTER = TOKEN_LIFETIME / 2
+REFRESHED_TOKEN_HEADER = "X-Refreshed-Token"
 DEV_USER_EMAIL = "dev@localhost"
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -54,6 +58,7 @@ def _dev_user(session: Session) -> User:
 
 
 def get_current_user(
+    response: Response,
     creds: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     session: Session = Depends(get_session),
 ) -> User:
@@ -70,4 +75,7 @@ def get_current_user(
     user = session.get(User, int(payload["sub"]))
     if user is None or not user.is_active:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Unknown or inactive user")
+    expires = datetime.fromtimestamp(payload["exp"], timezone.utc)
+    if expires - utcnow() < TOKEN_LIFETIME - REFRESH_AFTER:
+        response.headers[REFRESHED_TOKEN_HEADER] = create_access_token(user)
     return user

@@ -3,6 +3,11 @@
 > FastAPI routers in `backend/routers/`. All endpoints require a bearer JWT
 > unless noted. Admin-only endpoints return 403 for `user` role. Money is
 > integer cents.
+>
+> JWTs last 30 days. Once a token is past half its life, any authenticated
+> response carries a replacement in the `X-Refreshed-Token` header, which the
+> frontend stores — so only 30 days without using the app forces a new
+> sign-in. A 401 on a request that sent a token returns the app to login.
 
 ## Auth — `routers/auth_router.py`
 

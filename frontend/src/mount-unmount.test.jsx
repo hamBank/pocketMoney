@@ -25,7 +25,7 @@ beforeEach(() => {
     ok: true,
     status: 200,
     json: async () => [],
-    headers: { get: () => '0' },
+    headers: { get: (name) => (name === 'X-Total-Count' ? '0' : null) },
   }))
 })
 
