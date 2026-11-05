@@ -56,7 +56,7 @@ Allowlist management (who may sign in) lives under `PATCH /users` +
 
 | Method | Path | Who | Purpose |
 |---|---|---|---|
-| GET | `/health` | public | Liveness: DB reachable, `backend_version` (git SHA the process is running), `frontend_version`/`frontend_built_at` (git SHA + timestamp the served bundle was built from, from `static/version.json`). The two versions diverging flags a partial deploy — see DEPLOYMENT.md. |
+| GET | `/health` | public | Liveness + build identity (fleet spec OBS-1): pings the DB and returns `{status, backend_sha, frontend_sha, build_sha, built_at, started_at}`. `backend_sha` = commit the process started from; `build_sha`/`built_at` = commit and time the served bundle was built (from `static/version.json`); `frontend_sha` = last commit that changed `frontend/src` (open clients compare it with their own and offer a reload); `started_at` = process start (UTC). After a good deploy `backend_sha == build_sha`. |
 | POST | `/deploy` | HMAC | Redeploy webhook (`DEPLOY_SECRET`-signed); touches `.deploy-trigger` |
 | GET | `/{spa_path}` | public | Static mount serving the compiled SPA (catch-all → `index.html`) |
 

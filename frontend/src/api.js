@@ -16,18 +16,12 @@ export function setUnauthorizedHandler(handler) {
   onUnauthorized = handler
 }
 
-// The backend swaps a token past half its life for a fresh one in this
-// header; a 401 on a request we sent a token with means the session is over.
-function trackSession(response, sentToken) {
-  const refreshed = response.headers.get('X-Refreshed-Token')
-  if (refreshed) setToken(refreshed)
-  if (response.status === 401 && sentToken) {
-    setToken(null)
-    onUnauthorized()
-  }
-}
-
-export async function apiFetch(path, { method = 'GET', body } = {}) {
+// The one authenticated fetch (fleet spec AUTH-4): every helper goes through
+// it. The backend swaps a token past half its life for a fresh one in
+// X-Refreshed-Token; a 401 on a request that sent a token means the session
+// is over. Both only act if the token sent is still the stored one, so a late
+// response can't resurrect a session after sign-out or a newer sign-in.
+async function request(path, { method = 'GET', body } = {}) {
   const headers = {}
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   const token = getToken()
@@ -38,7 +32,13 @@ export async function apiFetch(path, { method = 'GET', body } = {}) {
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   })
-  trackSession(response, token)
+  const current = token && getToken() === token
+  const refreshed = response.headers.get('X-Refreshed-Token')
+  if (refreshed && current) setToken(refreshed)
+  if (response.status === 401 && current) {
+    setToken(null)
+    onUnauthorized()
+  }
   if (!response.ok) {
     let detail
     try {
@@ -50,8 +50,25 @@ export async function apiFetch(path, { method = 'GET', body } = {}) {
     error.status = response.status
     throw error
   }
+  return response
+}
+
+export async function apiFetch(path, options) {
+  const response = await request(path, options)
   return response.status === 204 ? null : response.json()
 }
+
+// Paged GET: resolves to { items, total } using the X-Total-Count header.
+export async function apiFetchPaged(path) {
+  const response = await request(path)
+  return {
+    items: await response.json(),
+    total: Number(response.headers.get('X-Total-Count') || 0),
+  }
+}
+
+// Health
+export const getHealth = () => apiFetch('/health')
 
 // Auth
 export const getAuthConfig = () => apiFetch('/auth/config')
@@ -68,28 +85,6 @@ export const updateChore = (id, data) =>
   apiFetch(`/chores/${id}`, { method: 'PATCH', body: data })
 export const deactivateChore = (id) =>
   apiFetch(`/chores/${id}`, { method: 'DELETE' })
-
-// Paged GET: resolves to { items, total } using the X-Total-Count header.
-export async function apiFetchPaged(path) {
-  const headers = {}
-  const token = getToken()
-  if (token) headers['Authorization'] = `Bearer ${token}`
-  const response = await fetch(path, { headers })
-  trackSession(response, token)
-  if (!response.ok) {
-    let detail
-    try {
-      detail = (await response.json()).detail
-    } catch {
-      // non-JSON error body
-    }
-    throw new Error(detail || `${response.status} ${response.statusText}`)
-  }
-  return {
-    items: await response.json(),
-    total: Number(response.headers.get('X-Total-Count') || 0),
-  }
-}
 
 // Claims
 export const listClaims = (params = {}) => {

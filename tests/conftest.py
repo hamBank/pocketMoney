@@ -1,7 +1,8 @@
 import os
 
 # Must be set before any backend import — Settings reads env at import time.
-os.environ["DATABASE_URL"] = "sqlite:///./test_pmoney.db"
+# TEST_DATABASE_URL runs the suite on Postgres (the backend-postgres CI job).
+os.environ["DATABASE_URL"] = os.environ.get("TEST_DATABASE_URL", "sqlite:///./test_pmoney.db")
 os.environ["AUTH_ENABLED"] = "true"
 os.environ["JWT_SECRET"] = "test-secret"
 os.environ["ALLOWED_EMAILS"] = "parent@example.com"

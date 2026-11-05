@@ -7,6 +7,7 @@ import ChoreManager from './components/ChoreManager'
 import ClaimHistory from './components/ClaimHistory'
 import LoginPage from './components/LoginPage'
 import UserManager from './components/UserManager'
+import UpdateBanner from './components/UpdateBanner'
 import UserSettings from './components/UserSettings'
 
 function Centered({ children }) {
@@ -77,6 +78,7 @@ export default function App() {
   const symbol = config.currency_symbol || '$'
   return (
     <div className="min-h-screen bg-page">
+      <UpdateBanner />
       <header className="flex flex-wrap items-center justify-between gap-y-2 bg-card px-4 py-3 shadow sm:px-6">
         <h1 className="text-lg font-bold text-ink">Pocket Money</h1>
         <div className="flex flex-wrap items-center gap-3">

@@ -1,0 +1,12 @@
+# /etc/systemd/system/pmoney-backup.service — nightly ledger backup (fleet spec
+# DEP-5/DEP-6). 7-day rotation by weekday number. `%%u` because systemd expands
+# `%`, and pipefail so a failed pg_dump fails the unit instead of writing an
+# empty .gz and exiting 0 (which the old cron line did).
+[Unit]
+Description=Pocket Money nightly pg_dump
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=postgres
+ExecStart=/bin/bash -o pipefail -c 'pg_dump pmoney | gzip > /var/backups/pmoney/pmoney-$(date +%%u).sql.gz'

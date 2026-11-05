@@ -134,7 +134,7 @@ email:
 - **Kids:** the app home screen shows their **"chores due" list** — chores
   currently claimable by them, derived from schedule + claim mode.
 - **Admins:** the app shows an **approval-due list** (pending claims queue),
-  and a **once-per-day email digest** (cron-invoked,
+  and a **once-per-day email digest** (timer-invoked,
   `scripts/send_admin_digest.py`) containing:
   - **Pending:** claims awaiting approval (user, chore/description, value,
     submitted when)
@@ -163,7 +163,7 @@ the source of truth; the sheet is written by the app only.
   formula over their tab), the app's balance, a ✓/✗ "DB check" comparing
   the two, earned this week (credits since Monday local time), spent this
   month (withdrawals), last entry date and entry count.
-- Syncs after every money change and every 10 minutes by cron; idempotent
+- Syncs after every money change and every 10 minutes by a systemd timer; idempotent
   (each tab's highest Tx ID is the high-water mark), so the first run
   backfills all history and a failed sync is simply retried.
 

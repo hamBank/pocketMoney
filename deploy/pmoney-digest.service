@@ -1,0 +1,12 @@
+# /etc/systemd/system/pmoney-digest.service — admin daily digest (fleet spec DEP-5: a timer, not
+# cron, so the last run has a queryable Result that scripts/smoke_check.sh reads).
+[Unit]
+Description=Pocket Money admin daily digest
+After=network-online.target postgresql.service
+
+[Service]
+Type=oneshot
+User=pocketMoney
+WorkingDirectory=/opt/pocketMoney
+EnvironmentFile=/opt/pocketMoney/.env
+ExecStart=/opt/pocketMoney/.venv/bin/python scripts/send_admin_digest.py

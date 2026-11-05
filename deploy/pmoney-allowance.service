@@ -1,0 +1,12 @@
+# /etc/systemd/system/pmoney-allowance.service — weekly allowance (idempotent per ISO week) (fleet spec DEP-5: a timer, not
+# cron, so the last run has a queryable Result that scripts/smoke_check.sh reads).
+[Unit]
+Description=Pocket Money weekly allowance (idempotent per ISO week)
+After=network-online.target postgresql.service
+
+[Service]
+Type=oneshot
+User=pocketMoney
+WorkingDirectory=/opt/pocketMoney
+EnvironmentFile=/opt/pocketMoney/.env
+ExecStart=/opt/pocketMoney/.venv/bin/python scripts/apply_weekly_allowance.py

@@ -72,3 +72,8 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_claim_status'), table_name='claim')
     op.drop_table('claim')
     # ### end Alembic commands ###
+    # drop_table leaves Postgres enum types behind; without this a
+    # downgrade + upgrade fails with 'type ... already exists'.
+    sa.Enum(name='transactiontype').drop(op.get_bind(), checkfirst=True)
+    sa.Enum(name='claimstatus').drop(op.get_bind(), checkfirst=True)
+    sa.Enum(name='claimkind').drop(op.get_bind(), checkfirst=True)

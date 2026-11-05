@@ -14,7 +14,7 @@
 #   2. certbot --apache -d pmoney.hups.club
 #   3. Add the GitHub webhook: POST https://pmoney.hups.club/deploy,
 #      content type application/json, secret = DEPLOY_SECRET, push events.
-set -euo pipefail
+set -Eeuo pipefail
 
 APP_DIR=/opt/pocketMoney
 REPO_URL=git@github.com:hamBank/pocketMoney.git
@@ -23,6 +23,12 @@ SERVICE=pmoney
 LOG=/var/log/pocketMoney-deploy.log
 
 log() { echo "[$(date -Is)] $*" | tee -a "$LOG"; }
+# Fleet spec DEP-1: log where a failure happened. -E makes the trap fire inside
+# update_code/provision too.
+trap 'rc=$?; log "ERROR: ${BASH_SOURCE[0]}:${LINENO}: \`${BASH_COMMAND}\` exited $rc"; exit $rc' ERR
+
+# Scheduled jobs (fleet spec DEP-5): deploy/pmoney-<job>.{service,timer}.
+TIMERS=(pmoney-digest pmoney-allowance pmoney-sheet-sync pmoney-backup)
 
 update_code() {
     log "updating code"
@@ -32,6 +38,13 @@ update_code() {
 
     log "python deps + migrations"
     sudo -u "$APP_USER" .venv/bin/pip install -q -r requirements.txt
+    chmod +x deploy.sh scripts/*.sh scripts/*.py  # DEP-7: git may not carry +x
+
+    # Fleet spec CFG-2: the new code refuses some configs (e.g. the default
+    # JWT_SECRET). Find out now, while the old process is still serving.
+    log "config check"
+    sudo -u "$APP_USER" env PYTHONDONTWRITEBYTECODE=1 .venv/bin/python scripts/check_config.py .env ||
+        { log "config check FAILED - leaving the running service untouched"; exit 1; }
     sudo -u "$APP_USER" bash -c "set -a && source .env 2>/dev/null; .venv/bin/alembic upgrade head"
 
     log "frontend build"
@@ -39,7 +52,20 @@ update_code() {
 
     log "restarting $SERVICE"
     systemctl restart "$SERVICE"
-    log "update done"
+
+    # Fleet spec DEP-4: a deploy must not fail semi-silently. Non-zero exit
+    # marks pmoney-deploy.service failed.
+    log "smoke check"
+    # As the app user: git refuses a repo owned by someone else ("dubious
+    # ownership") when run as root, which would silently skip the SHA checks.
+    DEPLOYED_SHA=$(sudo -u "$APP_USER" git rev-parse --short HEAD)
+    if SMOKE_UNIT_PREFIX=pmoney SMOKE_BACKUP_GLOB='/var/backups/pmoney/*.sql.gz' \
+        bash scripts/smoke_check.sh "http://127.0.0.1:8001" "$DEPLOYED_SHA" 2>&1 | tee -a "$LOG"; then
+        log "update done"
+    else
+        log "update done, BUT the smoke check FAILED"
+        exit 1
+    fi
 }
 
 provision() {
@@ -97,6 +123,11 @@ provision() {
     cp "$APP_DIR"/deploy/pmoney.service /etc/systemd/system/"$SERVICE".service
     cp "$APP_DIR"/deploy/pmoney-deploy.service /etc/systemd/system/pmoney-deploy.service
     cp "$APP_DIR"/deploy/pmoney-deploy.path /etc/systemd/system/pmoney-deploy.path
+    # Never from --update: daemon-reload inside the running deploy unit loops
+    # (fleetSpec guides, lesson 7). New units go in from a full provision.
+    for unit in "${TIMERS[@]}"; do
+        cp "$APP_DIR"/deploy/"$unit".service "$APP_DIR"/deploy/"$unit".timer /etc/systemd/system/
+    done
     systemctl daemon-reload
     systemctl enable "$SERVICE" pmoney-deploy.path
 
@@ -106,11 +137,18 @@ provision() {
     a2ensite -q pmoney.hups.club
     systemctl reload apache2
 
-    log "cron jobs"
-    cp "$APP_DIR"/deploy/pocketmoney.cron /etc/cron.d/pocketmoney
-    chmod 644 /etc/cron.d/pocketmoney
-
     update_code
+
+    # After update_code, so the jobs never run before the venv and the new
+    # code are in place; if the update fails, the old cron jobs keep running.
+    log "scheduled jobs (systemd timers)"
+    for unit in "${TIMERS[@]}"; do
+        systemctl enable --now "$unit".timer
+    done
+    # One-time cutover: the timers replace the old cron file, and running both
+    # would send the digest twice. Delete this line (and the DEP-5 deviation in
+    # .fleet-spec.yml) once prod has been re-provisioned.
+    rm -f /etc/cron.d/pocketmoney
     systemctl start pmoney-deploy.path
     log "=== provision done — see header of deploy.sh for the remaining manual steps ==="
 }

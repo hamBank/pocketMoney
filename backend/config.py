@@ -1,7 +1,11 @@
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings
+
+
+# Public (it's in the source): only usable with auth disabled, see below.
+DEFAULT_JWT_SECRET = "dev-secret-change-me"
 
 
 class Settings(BaseSettings):
@@ -10,7 +14,7 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./pmoney.db"
     auth_enabled: bool = True
     google_client_id: str = ""
-    jwt_secret: str = "dev-secret-change-me"
+    jwt_secret: str = DEFAULT_JWT_SECRET
     allowed_emails: str = ""  # comma-separated bootstrap allowlist
     deploy_secret: str = ""
     deploy_trigger_path: str = ".deploy-trigger"
@@ -40,6 +44,17 @@ class Settings(BaseSettings):
         except (ZoneInfoNotFoundError, ValueError) as exc:
             raise ValueError(f"Unknown timezone {value!r}") from exc
         return value
+
+    @model_validator(mode="after")
+    def _auth_needs_a_private_secret(self):
+        # Fleet spec CFG-2: the default is in the source, so anyone could
+        # forge a login token. Refuse to start rather than run that way.
+        if self.auth_enabled and self.jwt_secret in ("", DEFAULT_JWT_SECRET):
+            raise ValueError(
+                "JWT_SECRET is unset or still the public default; set it to a "
+                "long random string, e.g. `openssl rand -hex 32`"
+            )
+        return self
 
 
 settings = Settings()

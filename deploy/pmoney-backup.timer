@@ -1,0 +1,10 @@
+# /etc/systemd/system/pmoney-backup.timer — 02:30, staggered from recipeFlood (02:45).
+[Unit]
+Description=Run Pocket Money nightly pg_dump
+
+[Timer]
+OnCalendar=*-*-* 02:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

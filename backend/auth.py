@@ -37,7 +37,8 @@ def allowed_emails() -> set[str]:
 
 
 def create_access_token(user: User) -> str:
-    payload = {"sub": str(user.id), "exp": utcnow() + TOKEN_LIFETIME}
+    now = utcnow()
+    payload = {"sub": str(user.id), "iat": now, "exp": now + TOKEN_LIFETIME}
     return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
 
 

@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, status
@@ -13,6 +14,7 @@ from .routers import auth_router, chores, claims, transactions, users
 from .version import backend_version, frontend_version
 
 STATIC_DIR = Path(__file__).parent / "static"
+STARTED_AT = datetime.now(timezone.utc).isoformat()
 
 
 def create_app() -> FastAPI:
@@ -22,12 +24,15 @@ def create_app() -> FastAPI:
     def health():
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
+        # Fleet spec OBS-1 contract; field meanings in backend/version.py.
         frontend = frontend_version()
         return {
             "status": "ok",
-            "backend_version": backend_version(),
-            "frontend_version": frontend["version"],
-            "frontend_built_at": frontend["built_at"],
+            "backend_sha": backend_version(),
+            "frontend_sha": frontend["frontend_sha"],
+            "build_sha": frontend["build_sha"],
+            "built_at": frontend["built_at"],
+            "started_at": STARTED_AT,
         }
 
     @app.post("/deploy")
