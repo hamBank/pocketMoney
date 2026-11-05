@@ -50,6 +50,44 @@ describe('session handling', () => {
     expect(unauthorized).toHaveBeenCalledOnce()
   })
 
+  it('does not restore a refreshed token after sign-out mid-request', async () => {
+    let release
+    global.fetch = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          release = () =>
+            resolve({
+              ok: true,
+              status: 200,
+              json: async () => [],
+              headers: { get: (name) => (name === 'X-Refreshed-Token' ? 'late-token' : null) },
+            })
+        }),
+    )
+    const pending = apiFetch('/auth/me')
+    setToken(null) // signed out while the request was in flight
+    release()
+    await pending
+    expect(getToken()).toBeNull()
+  })
+
+  it('ignores a 401 for a token that has since been replaced', async () => {
+    let release
+    global.fetch = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          release = () =>
+            resolve({ ok: false, status: 401, statusText: '', json: async () => ({}), headers: { get: () => null } })
+        }),
+    )
+    const pending = apiFetch('/claims')
+    setToken('new-sign-in')
+    release()
+    await expect(pending).rejects.toThrow()
+    expect(getToken()).toBe('new-sign-in')
+    expect(unauthorized).not.toHaveBeenCalled()
+  })
+
   it('ignores a 401 when no token was sent (e.g. a failed login)', async () => {
     setToken(null)
     respond(401)

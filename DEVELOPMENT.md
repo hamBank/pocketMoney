@@ -15,6 +15,7 @@ cd pocketMoney
 # Backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt        # or: pip install -e ".[dev]"
+export AUTH_ENABLED=false              # see below; the app refuses the default JWT_SECRET otherwise
 alembic upgrade head                   # creates local SQLite DB
 python scripts/seed_dev_data.py        # optional fixtures
 
@@ -37,7 +38,9 @@ cd frontend && npm run build           # outputs to backend/static/
 ```
 
 `AUTH_ENABLED=false` bypasses Google OAuth and signs you in as a local dev
-admin — never set in production.
+admin — never set in production. With auth enabled (the default) the app,
+`alembic` and the scripts refuse to start unless `JWT_SECRET` is set to
+something other than the public default (fleet spec CFG-2).
 
 ## Environment variables
 
@@ -46,7 +49,7 @@ admin — never set in production.
 | `DATABASE_URL` | `sqlite:///./pmoney.db` | Postgres URL in production |
 | `AUTH_ENABLED` | `true` | `false` = local dev bypass |
 | `GOOGLE_CLIENT_ID` | — | OAuth client |
-| `JWT_SECRET` | — | app token signing |
+| `JWT_SECRET` | — | app token signing; required (not the default) when auth is enabled |
 | `ALLOWED_EMAILS` | — | comma-separated bootstrap allowlist (first admin) |
 | `DEPLOY_SECRET` | — | HMAC key for `/deploy` webhook |
 | `CURRENCY_SYMBOL` | `$` | display only |
@@ -58,6 +61,7 @@ admin — never set in production.
 
 ```bash
 pytest                       # backend — tests/ — runs against SQLite
+TEST_DATABASE_URL=postgresql+psycopg2:///pmoney_test pytest   # same suite on Postgres
 cd frontend && npm run lint  # eslint — flags hook/JSX bug patterns statically
 cd frontend && npm test      # vitest — frontend/src/*.test.{js,jsx}
 ```
@@ -73,8 +77,10 @@ alembic revision --autogenerate -m "add chore.assignee_ids"
 alembic upgrade head
 ```
 
-Keep migrations SQLite-compatible (no Postgres-only types) so local dev and
-CI stay on SQLite.
+Keep migrations working on SQLite **and** Postgres: CI runs them on both
+(`backend-postgres` does upgrade, `alembic check`, `downgrade base`, and
+upgrade again), so a `downgrade()` must drop everything its `upgrade()`
+created, Postgres enum types included.
 
 ## Git workflow
 
@@ -82,5 +88,8 @@ CI stay on SQLite.
 2. Make changes; run `pytest`, `npm run lint`, and `npm test`.
 3. Commit source only — `backend/static/` is gitignored and built during
    deploy.
-4. Push, open a PR, merge to `main`. A push to `main` can trigger production
-   redeploy via the `/deploy` webhook (see [DEPLOYMENT.md](DEPLOYMENT.md)).
+4. Push, open a PR, squash-merge to `main` once CI is green. A push to
+   `main` triggers a production redeploy via the `/deploy` webhook (see
+   [DEPLOYMENT.md](DEPLOYMENT.md)); check `/health` afterwards.
+5. The repo follows `hamBank/fleetSpec`: see `CLAUDE.md` and
+   `.fleet-spec.yml`.

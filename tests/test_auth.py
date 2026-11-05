@@ -47,6 +47,12 @@ def test_me_requires_token(client):
     assert client.get("/auth/me", headers=auth_headers("junk")).status_code == 401
 
 
+def test_token_carries_iat_and_exp(client, monkeypatch):
+    token = sign_in(client, monkeypatch, "parent@example.com")["token"]
+    claims = jwt.decode(token, settings.jwt_secret, algorithms=["HS256"])
+    assert claims["exp"] - claims["iat"] == TOKEN_LIFETIME.total_seconds()
+
+
 def test_fresh_token_is_not_refreshed(client, monkeypatch):
     token = sign_in(client, monkeypatch, "parent@example.com")["token"]
     me = client.get("/auth/me", headers=auth_headers(token))

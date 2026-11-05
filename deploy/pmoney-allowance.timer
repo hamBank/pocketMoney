@@ -1,0 +1,11 @@
+# /etc/systemd/system/pmoney-allowance.timer
+[Unit]
+Description=Run Pocket Money weekly allowance (idempotent per ISO week) on a schedule
+
+[Timer]
+OnCalendar=Mon *-*-* 06:00:00
+Persistent=true
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target

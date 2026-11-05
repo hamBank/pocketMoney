@@ -1,0 +1,4 @@
+# Scripts run on the Linux server; a CRLF shebang or `set -o pipefail\r` breaks them.
+*.sh text eol=lf
+*.py text eol=lf
+deploy/* text eol=lf

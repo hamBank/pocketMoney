@@ -1,0 +1,10 @@
+# hamBank/fleetSpec conformance (checked by the fleet-spec CI job).
+spec: 0.2
+deviations:
+  - rule: DEP-5
+    reason: >-
+      Scheduled jobs are systemd timers (deploy/pmoney-*.timer), but deploy.sh still
+      deletes the old /etc/cron.d file during the one-time cutover, which this static
+      check reads as using cron. Remove that line and this entry once prod has been
+      re-provisioned with `sudo ./deploy.sh`.
+    until: 2027-01-31

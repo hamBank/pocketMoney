@@ -46,3 +46,6 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_user_email'), table_name='user')
     op.drop_table('user')
     # ### end Alembic commands ###
+    # drop_table leaves Postgres enum types behind; without this a
+    # downgrade + upgrade fails with 'type ... already exists'.
+    sa.Enum(name='userrole').drop(op.get_bind(), checkfirst=True)

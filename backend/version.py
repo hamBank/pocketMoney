@@ -4,12 +4,12 @@
 out at — cached, since the systemd service restarts on every deploy
 (see DEPLOYMENT.md), so it only needs computing once per process.
 
-`frontend_version()` reads `static/version.json`, written by
-`npm run build` (frontend/scripts/write-version.js) before Vite copies
-`public/` into that directory. Read fresh on every call rather than
-cached: if a deploy rebuilds the frontend without restarting the
-backend (or vice versa), the two versions in `/health` diverge
-immediately instead of only after the next restart.
+`frontend_version()` reads `static/version.json` ({build_sha,
+frontend_sha, built_at}, fleet spec BLD-2), written by `npm run build`
+(frontend/scripts/write-version.js) before Vite copies `public/` into
+that directory. Read fresh on every call rather than cached: the service
+can restart before the build finishes, and a skipped or failed build
+must show up as `build_sha` != `backend_sha` straight away.
 """
 
 import json
@@ -37,9 +37,14 @@ def backend_version() -> str:
         return "unknown"
 
 
+VERSION_FIELDS = ("build_sha", "frontend_sha", "built_at")
+
+
 def frontend_version() -> dict:
     try:
         data = json.loads(VERSION_FILE.read_text())
     except (FileNotFoundError, json.JSONDecodeError, OSError):
-        return {"version": None, "built_at": None}
-    return {"version": data.get("version"), "built_at": data.get("built_at")}
+        data = {}
+    if not isinstance(data, dict):
+        data = {}
+    return {field: data.get(field) for field in VERSION_FIELDS}

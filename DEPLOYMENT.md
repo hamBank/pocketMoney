@@ -12,12 +12,22 @@
   proxy to :8001. The FastAPI app serves both the API and the built SPA, so
   Apache proxies everything.
 - **DB:** Postgres, database `pmoney` (local to the server).
-- **Cron:** `scripts/send_admin_digest.py` (daily — admin email digest of
-  pending claims) and `scripts/apply_weekly_allowance.py` (Mondays —
-  idempotent allowance transactions), installed from
-  `deploy/pocketmoney.cron` to `/etc/cron.d/pocketmoney` by `deploy.sh`.
-  Cron doesn't read the systemd unit's `EnvironmentFile`, so each job
-  sources `.env` itself; output goes to `/var/log/pocketMoney-cron.log`.
+- **Scheduled jobs:** systemd timers with oneshot services, from
+  `deploy/pmoney-<job>.{service,timer}` (fleet spec DEP-5). Each service
+  loads `/opt/pocketMoney/.env` via `EnvironmentFile` and logs to journald.
+
+  | unit | runs | when |
+  |---|---|---|
+  | `pmoney-digest` | `scripts/send_admin_digest.py` | daily 18:00 |
+  | `pmoney-allowance` | `scripts/apply_weekly_allowance.py` (idempotent per ISO week) | Mondays 06:00 |
+  | `pmoney-sheet-sync` | `scripts/sync_sheet.py` (no-op without `GOOGLE_SHEET_ID`) | every 10 min |
+  | `pmoney-backup` | `pg_dump pmoney` (as `postgres`) | daily 02:30 |
+
+  Times are the server's local time, as the old cron jobs were. Units are
+  installed and enabled by a full `sudo ./deploy.sh`, never by `--update`
+  (a `daemon-reload` inside the running deploy unit loops). That full run
+  also removes the old `/etc/cron.d/pocketmoney`; running both would send
+  the digest twice.
 
 ## Repo access (deploy key)
 
@@ -43,11 +53,18 @@ Idempotent script that:
 2. Creates the `pocketMoney` system user and `/opt/pocketMoney`
 3. Clones/updates the repo, creates the venv, installs requirements
 4. Builds the frontend (`npm ci && npm run build` → `backend/static/`)
-5. Runs `alembic upgrade head`
-6. Installs/refreshes the systemd service, path unit, and Apache vhost
-7. Restarts the service
+5. Checks the config the service will start with (`scripts/check_config.py`,
+   e.g. no default `JWT_SECRET`) and aborts before touching the running
+   service if it would not start
+6. Runs `alembic upgrade head`
+7. Installs/refreshes the systemd service, path unit, timers and Apache vhost
+8. Restarts the service and runs `scripts/smoke_check.sh` (below); a failed
+   check makes `deploy.sh` exit non-zero, so `pmoney-deploy.service` shows
+   as failed
 
-`deploy.sh --update` runs only steps 3–7 (used by the webhook path below).
+`deploy.sh --update` runs steps 3–6 and 8 (used by the webhook path below).
+Any failure logs `ERROR: deploy.sh:<line>: <command> exited <rc>` to
+`/var/log/pocketMoney-deploy.log`.
 
 The built `backend/static/` is produced on the server at deploy time — it is
 **not** committed to the repo.
@@ -111,8 +128,8 @@ so a personal inbox's password never lives in `.env`).
    display name. Quote any value containing spaces or `<>` (see
    Configuration below).
 4. `sudo systemctl restart pmoney`, then trigger a digest run manually to
-   confirm delivery: `sudo -u pocketMoney bash -c 'set -a && source .env &&
-   .venv/bin/python scripts/send_admin_digest.py'`.
+   confirm delivery: `sudo systemctl start pmoney-digest.service` (check it
+   with `journalctl -u pmoney-digest -n 20`).
 
 A regular Gmail password will **not** work here (Google rejects it) — it
 must be an App Password. Leaving `SMTP_USER` unset is fine too: the digest
@@ -134,7 +151,7 @@ rotation) are in **[SHEETS_SETUP.md](SHEETS_SETUP.md)**. In short:
    (owner `pocketMoney`, mode 600) and set `GOOGLE_SHEET_ID`,
    `GOOGLE_SERVICE_ACCOUNT_FILE`, `SHEET_TIMEZONE` in `.env`.
 4. `sudo systemctl restart pmoney`, then backfill with
-   `scripts/sync_sheet.py`; the 10-minute cron keeps it caught up.
+   `scripts/sync_sheet.py`; the 10-minute `pmoney-sheet-sync` timer keeps it caught up.
 
 ## Configuration
 
@@ -146,38 +163,61 @@ Gmail SMTP settings for the admin digest (`SMTP_HOST`, `SMTP_PORT`,
 above) and the optional Google Sheets mirror (`GOOGLE_SHEET_ID`,
 `GOOGLE_SERVICE_ACCOUNT_FILE`, `SHEET_TIMEZONE` — see above).
 
-The same file is also sourced by bash (`set -a && . ./.env`) in the cron
-jobs and `deploy.sh`, so it must be valid for both systemd and bash: plain
+The same file is also sourced by bash (`set -a && . ./.env`) in `deploy.sh`
+for alembic, so it must be valid for both systemd and bash: plain
 `KEY=value` lines, no `export`, and **double-quote any value containing
-spaces or shell characters** (`SMTP_PASSWORD="abcd efgh ijkl mnop"`). An
-unquoted value with a space makes the cron jobs fail before they start.
+spaces or shell characters** (`SMTP_PASSWORD="abcd efgh ijkl mnop"`).
+
+With `AUTH_ENABLED=true` (the default), `JWT_SECRET` **must** be set to a
+long random value: the app refuses to start with it empty or equal to the
+public default, and the deploy aborts at the config check rather than
+restart into a crash loop.
 
 ## Logs & operations
 
 ```bash
 journalctl -u pmoney -f                      # app logs
 tail -f /var/log/pocketMoney-deploy.log      # deploy runs (timestamped headers)
-tail -f /var/log/pocketMoney-cron.log        # digest + weekly allowance runs
+systemctl list-timers 'pmoney-*'             # scheduled jobs: last/next run
+journalctl -u pmoney-digest -n 40            # one job's output (digest, allowance, sheet-sync, backup)
 systemctl restart pmoney                     # manual restart
-sudo -u postgres pg_dump pmoney > backup.sql # DB backup
+sudo systemctl start pmoney-backup.service   # DB backup now
 ```
 
 ## Verifying a deploy
 
+Every deploy runs `scripts/smoke_check.sh` after the restart (fleet spec
+DEP-4) and fails if it fails. It waits up to 60s for `/health`, then checks:
+
+- `status` is `ok` (the DB answered);
+- `backend_sha` **and** `build_sha` both equal the checked-out `HEAD` —
+  the new code is running and the frontend was rebuilt from it;
+- every `pmoney-*.timer` is enabled and its service's last run succeeded
+  (a disabled timer only warns);
+- the newest `/var/backups/pmoney/*.sql.gz` is under 36h old (warns only).
+
+By hand:
+
 ```bash
 curl -s https://pmoney.hups.club/health
-# {"status":"ok","backend_version":"6420c36","frontend_version":"6420c36","frontend_built_at":"..."}
+# {"status":"ok","backend_sha":"6420c36","frontend_sha":"5f1e2d3","build_sha":"6420c36","built_at":"...","started_at":"..."}
+sudo -u pocketMoney bash /opt/pocketMoney/scripts/smoke_check.sh http://127.0.0.1:8001 "$(git -C /opt/pocketMoney rev-parse --short HEAD)"
 ```
 
-`backend_version` and `frontend_version` are both git short SHAs — `backend_version`
-from the checkout the running process started from, `frontend_version` from
-`static/version.json` (written by `npm run build`, read fresh on every
-request). They should always match after a full `deploy.sh --update` run.
-If they diverge, the frontend build step failed or was skipped on the last
-deploy — check `/var/log/pocketMoney-deploy.log` and rerun
+`frontend_sha` is the last commit that changed `frontend/src`, so it lags
+`build_sha` after backend-only deploys; that is expected. Open browser tabs
+compare it with the bundle they are running and offer a reload when it
+changes. If `build_sha` differs from `backend_sha`, the frontend build
+failed or was skipped — check `/var/log/pocketMoney-deploy.log` and rerun
 `sudo ./deploy.sh --update`.
 
 ## Backups
 
-The ledger is the family's money record — schedule a nightly `pg_dump` to
-off-server storage before go-live. (TODO: add to `deploy.sh` provisioning.)
+`pmoney-backup.timer` dumps the database nightly at 02:30 to
+`/var/backups/pmoney/pmoney-<weekday>.sql.gz` (7-day rotation); the unit
+fails if `pg_dump` fails, and the smoke check warns when the newest dump
+is over 36h old.
+
+**Still TODO (fleet spec DEP-6): an off-box copy.** The dumps live on the
+same VM as the database, so losing the VM loses both. Pick a destination
+(another host, object storage) and add a step after the dump.

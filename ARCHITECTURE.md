@@ -65,10 +65,12 @@ backend/
   static/            # compiled frontend output — served at /
 alembic/             # migration scripts
 scripts/
-  send_admin_digest.py       # cron (daily): email admins pending claims +
+  send_admin_digest.py       # timer (daily): email admins pending claims +
                              # that day's submitted/resolved claim activity
-  apply_weekly_allowance.py  # cron (Mondays): idempotent allowance transactions
-  sync_sheet.py              # cron (every 10 min): Google Sheet ledger catch-up
+  apply_weekly_allowance.py  # timer (Mondays): idempotent allowance transactions
+  sync_sheet.py              # timer (every 10 min): Google Sheet ledger catch-up
+  check_config.py            # deploy preflight: refuse a config the app won't start with
+  smoke_check.sh             # post-deploy check; deploy.sh fails if it fails
   seed_dev_data.py           # optional local fixtures (users, chores, claims)
 frontend/
   src/
