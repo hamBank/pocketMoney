@@ -140,15 +140,11 @@ provision() {
     update_code
 
     # After update_code, so the jobs never run before the venv and the new
-    # code are in place; if the update fails, the old cron jobs keep running.
+    # code are in place.
     log "scheduled jobs (systemd timers)"
     for unit in "${TIMERS[@]}"; do
         systemctl enable --now "$unit".timer
     done
-    # One-time cutover: the timers replace the old cron file, and running both
-    # would send the digest twice. Delete this line (and the DEP-5 deviation in
-    # .fleet-spec.yml) once prod has been re-provisioned.
-    rm -f /etc/cron.d/pocketmoney
     systemctl start pmoney-deploy.path
     log "=== provision done — see header of deploy.sh for the remaining manual steps ==="
 }

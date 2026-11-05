@@ -25,9 +25,9 @@
 
   Times are the server's local time, as the old cron jobs were. Units are
   installed and enabled by a full `sudo ./deploy.sh`, never by `--update`
-  (a `daemon-reload` inside the running deploy unit loops). That full run
-  also removes the old `/etc/cron.d/pocketmoney`; running both would send
-  the digest twice.
+  (a `daemon-reload` inside the running deploy unit loops). These replaced
+  the old `/etc/cron.d/pocketmoney` (removed from prod 2026-11-05); never
+  run a job from cron as well, or the digest is sent twice.
 
 ## Repo access (deploy key)
 
