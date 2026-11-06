@@ -1,7 +1,7 @@
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import field_validator, model_validator
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 # Public (it's in the source): only usable with auth disabled, see below.
@@ -10,6 +10,10 @@ DEFAULT_JWT_SECRET = "dev-secret-change-me"
 
 class Settings(BaseSettings):
     """App configuration from environment variables (see DEVELOPMENT.md)."""
+
+    # A validation error would otherwise quote every value it was given,
+    # secrets included, into the journal and the deploy log.
+    model_config = SettingsConfigDict(hide_input_in_errors=True)
 
     database_url: str = "sqlite:///./pmoney.db"
     auth_enabled: bool = True

@@ -18,6 +18,9 @@ from backend.main import app
 @pytest.fixture(autouse=True)
 def fresh_db():
     SQLModel.metadata.create_all(engine)
+    # Fleet spec DB-6: psycopg3 prepares repeated statements per connection, and a
+    # pooled connection's cached plan can outlive the tables it was planned for.
+    engine.dispose()
     yield
     SQLModel.metadata.drop_all(engine)
 
