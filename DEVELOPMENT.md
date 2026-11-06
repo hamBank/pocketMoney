@@ -61,7 +61,7 @@ something other than the public default (fleet spec CFG-2).
 
 ```bash
 pytest                       # backend — tests/ — runs against SQLite
-TEST_DATABASE_URL=postgresql+psycopg2:///pmoney_test pytest   # same suite on Postgres
+TEST_DATABASE_URL=postgresql+psycopg:///pmoney_test pytest   # same suite on Postgres
 cd frontend && npm run lint  # eslint — flags hook/JSX bug patterns statically
 cd frontend && npm test      # vitest — frontend/src/*.test.{js,jsx}
 ```
