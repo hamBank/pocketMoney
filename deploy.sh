@@ -133,8 +133,24 @@ provision() {
 
     log "apache vhost"
     a2enmod -q proxy proxy_http
-    cp "$APP_DIR"/deploy/pmoney.hups.club.conf /etc/apache2/sites-available/
-    a2ensite -q pmoney.hups.club
+    # Fleet spec DEP-8: `certbot --apache` edits the installed vhost (adds the
+    # HTTP->HTTPS redirect) and writes $VHOST-le-ssl.conf beside it. Install the
+    # repo copy only on a fresh box or when the installed one is still identical
+    # to it; never copy over certbot's (or a hand) edit.
+    VHOST=pmoney.hups.club
+    VHOST_SRC="$APP_DIR/deploy/$VHOST.conf"
+    VHOST_DST="/etc/apache2/sites-available/$VHOST.conf"
+    if [ -e "/etc/apache2/sites-available/$VHOST-le-ssl.conf" ]; then
+        log "vhost: certbot owns $VHOST_DST ($VHOST-le-ssl.conf exists) - left alone"
+    elif [ -e "$VHOST_DST" ] && ! cmp -s "$VHOST_SRC" "$VHOST_DST"; then
+        log "vhost: $VHOST_DST differs from the repo copy - left alone; merge by hand"
+    else
+        cp "$VHOST_SRC" "$VHOST_DST"
+    fi
+    a2ensite -q "$VHOST"
+    # Never reload onto a broken config: a failed test trips the ERR trap,
+    # which logs it and aborts with Apache still serving the old config.
+    apachectl configtest 2>&1 | tee -a "$LOG"
     systemctl reload apache2
 
     update_code

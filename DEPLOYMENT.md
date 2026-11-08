@@ -57,7 +57,11 @@ Idempotent script that:
    e.g. no default `JWT_SECRET`) and aborts before touching the running
    service if it would not start
 6. Runs `alembic upgrade head`
-7. Installs/refreshes the systemd service, path unit, timers and Apache vhost
+7. Installs/refreshes the systemd service, path unit and timers, and installs
+   the Apache vhost only if it is missing or still identical to the repo copy
+   (once certbot has edited it, or `pmoney.hups.club-le-ssl.conf` exists, it is
+   left alone and logged). Apache is reloaded only after `apachectl configtest`
+   passes; a failed test aborts the provision (fleet spec DEP-8)
 8. Restarts the service and runs `scripts/smoke_check.sh` (below); a failed
    check makes `deploy.sh` exit non-zero, so `pmoney-deploy.service` shows
    as failed
