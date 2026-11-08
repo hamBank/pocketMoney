@@ -59,7 +59,11 @@ update_code() {
     # As the app user: git refuses a repo owned by someone else ("dubious
     # ownership") when run as root, which would silently skip the SHA checks.
     DEPLOYED_SHA=$(sudo -u "$APP_USER" git rev-parse --short HEAD)
+    # SMOKE_CRON_PATTERN: the jobs the old system cron file ran, now timers.
+    # A leftover cron line would run one a second time (fleetSpec lesson 20).
     if SMOKE_UNIT_PREFIX=pmoney SMOKE_BACKUP_GLOB='/var/backups/pmoney/*.sql.gz' \
+        SMOKE_APP_USER="$APP_USER" \
+        SMOKE_CRON_PATTERN='send_admin_digest\.py|apply_weekly_allowance\.py|sync_sheet\.py|pg_dump pmoney' \
         bash scripts/smoke_check.sh "http://127.0.0.1:8001" "$DEPLOYED_SHA" 2>&1 | tee -a "$LOG"; then
         log "update done"
     else
