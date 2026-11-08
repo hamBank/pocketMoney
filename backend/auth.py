@@ -36,6 +36,17 @@ def allowed_emails() -> set[str]:
     }
 
 
+def may_sign_in(user: User | None) -> bool:
+    """The sign-in gate (fleet spec AUTH-3): membership is an active user row.
+
+    The one check behind Google login and every authenticated request, which is
+    also where the sliding session hands out a refreshed token, so deactivating
+    someone stops all three. The allowlist only decides whether a first sign-in
+    may create the row.
+    """
+    return user is not None and user.is_active
+
+
 def create_access_token(user: User) -> str:
     now = utcnow()
     payload = {"sub": str(user.id), "iat": now, "exp": now + TOKEN_LIFETIME}
@@ -74,7 +85,7 @@ def get_current_user(
     except jwt.PyJWTError:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid or expired token")
     user = session.get(User, int(payload["sub"]))
-    if user is None or not user.is_active:
+    if not may_sign_in(user):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Unknown or inactive user")
     expires = datetime.fromtimestamp(payload["exp"], timezone.utc)
     if expires - utcnow() < TOKEN_LIFETIME - REFRESH_AFTER:

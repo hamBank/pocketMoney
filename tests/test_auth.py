@@ -129,3 +129,31 @@ def test_auth_config_is_public(client):
     body = response.json()
     assert body["auth_enabled"] is True
     assert "currency_symbol" in body
+
+
+def test_deactivating_stops_login_requests_and_refresh(client, monkeypatch):
+    """Fleet spec AUTH-3: one gate, so revoking someone stops all three paths."""
+    admin_token = sign_in(client, monkeypatch, "parent@example.com")["token"]
+    client.post(
+        "/users/invite",
+        json={"email": "kid@example.com"},
+        headers=auth_headers(admin_token),
+    )
+    kid = sign_in(client, monkeypatch, "kid@example.com", sub="google-sub-kid")
+    fresh = kid["token"]
+    past_half_life = token_issued(kid["user"]["id"], ago=timedelta(days=20))
+    deactivated = client.patch(
+        f"/users/{kid['user']['id']}",
+        json={"is_active": False},
+        headers=auth_headers(admin_token),
+    )
+    assert deactivated.status_code == 200
+
+    # Login
+    assert client.post("/auth/google", json={"credential": "fake"}).status_code == 403
+    # A token issued before the deactivation
+    assert client.get("/auth/me", headers=auth_headers(fresh)).status_code == 401
+    # The sliding refresh: no new token for an old one
+    me = client.get("/auth/me", headers=auth_headers(past_half_life))
+    assert me.status_code == 401
+    assert REFRESHED_TOKEN_HEADER not in me.headers
