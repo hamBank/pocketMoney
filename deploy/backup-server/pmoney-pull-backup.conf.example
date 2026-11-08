@@ -1,0 +1,20 @@
+# /etc/pmoney-pull-backup.conf   (on the BACKUP server; root:pmpull, mode 0640)
+# Shell KEY=VALUE, read by pmoney-pull-backup.sh. Only SRC_HOST is required.
+
+# The app server and the restricted user scripts/add_backup_reader.sh created there.
+SRC_HOST=pmbackup@camelidcastle.hups.club
+
+# Where the copies go is set in the unit (Environment=DEST=/lklBackup/sites_apps/pocketMoney),
+# next to the ReadWritePaths= and RequiresMountsFor= that let the sandboxed service write
+# there. Don't set DEST here: a path the unit doesn't open is read-only to it.
+
+# Our history. The app server keeps 7 days; we keep longer, but never fewer than
+# MIN_KEEP dumps (so a broken source can't make us prune everything).
+#KEEP_DAYS=90
+#MIN_KEEP=7
+
+# Fail if the newest dump is older than this: the app server's backup job has stopped.
+#MAX_AGE_HOURS=30
+
+#SSH_KEY=/var/lib/pmoney-backup/.ssh/id_ed25519
+#KNOWN_HOSTS=/var/lib/pmoney-backup/.ssh/known_hosts

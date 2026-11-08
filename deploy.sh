@@ -73,7 +73,7 @@ provision() {
 
     log "packages"
     apt-get update -q
-    apt-get install -qy python3-venv python3-pip git nodejs npm \
+    apt-get install -qy python3-venv python3-pip git nodejs npm rsync \
         postgresql apache2 curl
 
     log "system user + app dir"

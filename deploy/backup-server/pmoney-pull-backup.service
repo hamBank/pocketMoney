@@ -1,0 +1,36 @@
+# /etc/systemd/system/pmoney-pull-backup.service   (on the BACKUP server)
+# Oneshot, so `systemctl status` / `systemctl show -p Result` say whether the last pull
+# worked (fleet spec DEP-5). The script exits non-zero if the pull fails, a backup is
+# unsound, or the newest one is stale: a failed run stays visible in `systemctl --failed`.
+[Unit]
+Description=Pull Pocket Money backups from the app server
+After=network-online.target
+Wants=network-online.target
+# The copies live on the backup disk. If it isn't mounted the pull fails (and shows
+# in `systemctl --failed`) instead of filling the root filesystem.
+RequiresMountsFor=/lklBackup/sites_apps/pocketMoney
+# Alert on failure, e.g. point this at a unit that mails you:
+# OnFailure=notify-failure@%n.service
+
+[Service]
+Type=oneshot
+User=pmpull
+# /var/lib/pmoney-backup: the ssh key and known_hosts live here.
+StateDirectory=pmoney-backup
+StateDirectoryMode=0700
+# Where the copies go. This line, ReadWritePaths= and RequiresMountsFor= name the same
+# path: change all three together (install.sh creates the directory from this line).
+Environment=DEST=/lklBackup/sites_apps/pocketMoney
+ExecStart=/usr/local/sbin/pmoney-pull-backup.sh
+TimeoutStartSec=2h
+# Hardening: it only needs the network, its state directory and DEST. ProtectSystem=strict
+# makes everything else read-only; without ReadWritePaths= the pull would work by hand
+# and fail here with "Read-only file system" (travelCompantion's first-run trap).
+ReadWritePaths=/lklBackup/sites_apps/pocketMoney
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
