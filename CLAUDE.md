@@ -49,6 +49,9 @@ Push to `main` → webhook → `deploy.sh --update`: pull, `pip install`, `scrip
 restart, then `scripts/smoke_check.sh`, which fails the deploy unless `/health` is ok,
 `backend_sha == build_sha == HEAD`, and every `pmoney-*.timer` job last succeeded. New or
 changed systemd units are installed only by a full `sudo ./deploy.sh`, never by `--update`.
+`pmoney-deploy.path` fires on `PathExists`: `--update` deletes `.deploy-trigger` first (so a failed
+deploy can't re-fire) and then takes `/var/lock/pmoney-deploy.lock` (a second deploy waits, not
+overlaps). Never switch it back to `PathChanged`; `tests/test_deploy_lock.py` pins this.
 Backups: `pmoney-backup.timer` dumps nightly to `/var/backups/pmoney`; a separate backup server
 pulls them read-only (`deploy/backup-server/`, `scripts/add_backup_reader.sh`, DEPLOYMENT.md
 "Off-box backups"). The app server holds no credentials for the backup server.
