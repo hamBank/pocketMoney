@@ -22,6 +22,7 @@ sets its own secret.
 pytest                                          # backend, SQLite
 TEST_DATABASE_URL=postgresql+psycopg:///db pytest   # the same suite on Postgres
 cd frontend && npm run lint && npm test
+scripts/install-hooks.sh                        # optional pre-push hook running the cheap checks
 ```
 CI (`.github/workflows/ci.yml`) runs `backend` (SQLite), `backend-postgres` (migrations up,
 `check`, `downgrade base`, up again, then the whole suite), `frontend` (lint, test, build) and
