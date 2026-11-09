@@ -82,7 +82,9 @@ you fix a deviation, delete its entry in the same PR.
 - **Instants are aware UTC; compare aware with aware.** 2026-10-07: sqlmodel 0.0.48 started
   rejecting naive datetimes, so the digest would have crashed after the next deploy. CI didn't
   catch it on its own because requirements had no upper bounds. Now sqlmodel is pinned to
-  0.0.48.x and every dependency is capped.
+  0.0.48.x and every dependency is capped, except `tzdata` (date-versioned data, nothing to cap
+  below). `tests/test_requirements_floor.py` enforces it: deploy.sh pip-installs into a long-lived
+  venv, so a too-low floor never upgrades prod and CI's fresh venv cannot see it.
 - **Timestamp columns are `timestamptz`.** 2026-10-25: migrations had created
   `timestamp without time zone`; on a server whose Postgres TimeZone isn't UTC, values were
   stored as local time and read back as UTC (shifted 10–11h in Canberra). SQLite-only tests
