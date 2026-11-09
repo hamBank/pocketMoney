@@ -14,6 +14,11 @@
 # If an alert doesn't fire when you expect it to, check that this was done: the
 # file existing in the repo doesn't mean Prometheus has loaded it.
 #
+# Names: the alerts are prefixed Pmoney and carry app=pmoney because they share
+# one Prometheus with travelCompantion, which has same-named alerts and also
+# counts a `google_oauth` service. Identical alert names and labels would be one
+# alert to Alertmanager, and the two apps' firings would overwrite each other.
+#
 # Coverage limit: pmoney_external_requests_total is counted inside the web
 # process only. The timer jobs (the 10-minute sheet sync, the weekly allowance,
 # the digest email) run in their own processes and are NOT counted, so a sync
@@ -28,13 +33,14 @@ groups:
       # pmoney_external_requests_total{service,status} is incremented by
       # backend/metrics.py:record_external_call around every outbound call
       # (google_sheets, google_oauth, smtp).
-      - alert: ExternalApiErrors
+      - alert: PmoneyExternalApiErrors
         expr: sum by (service) (increase(pmoney_external_requests_total{status="error"}[15m])) > 0
         for: 0m
         labels:
           severity: warning
+          app: pmoney
         annotations:
-          summary: "External API errors: {{ $labels.service }}"
+          summary: "Pocket Money external API errors: {{ $labels.service }}"
           description: >-
             {{ $value | printf "%.0f" }} failed call(s) to {{ $labels.service }}
             in the last 15 minutes. Details are logged at warning level by
@@ -44,7 +50,7 @@ groups:
       # called: a stronger signal than the count above, which a single blip
       # trips. It only evaluates when there is traffic in the window, so an idle
       # service never divides by zero or false-alarms.
-      - alert: ExternalApiHighErrorRate
+      - alert: PmoneyExternalApiHighErrorRate
         expr: >-
           sum by (service) (rate(pmoney_external_requests_total{status="error"}[15m]))
           /
@@ -53,8 +59,9 @@ groups:
         for: 15m
         labels:
           severity: critical
+          app: pmoney
         annotations:
-          summary: "External API failing hard: {{ $labels.service }}"
+          summary: "Pocket Money external API failing hard: {{ $labels.service }}"
           description: >-
             More than 25% of calls to {{ $labels.service }} have failed for
             15+ minutes. Whatever depends on it (the Google Sheet mirror,

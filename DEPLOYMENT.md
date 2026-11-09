@@ -248,8 +248,16 @@ Set up the same way as travelCompantion (fleet spec OBS-2).
   sudo systemctl reload prometheus
   ```
 
-  `prometheus.yml` needs `rule_files: [/etc/prometheus/rules/*.yml]` (travelCompantion's
-  already has it) and a scrape job for this app. If Prometheus runs on this box:
+  `prometheus.yml` must load the file and scrape this app. `rule_files` takes file **globs**,
+  not a directory, and a file the list doesn't cover is silently ignored, so check:
+  `rule_files: [/etc/prometheus/rules/*.yml]` (keep that directory to rules files only, and
+  reload after adding one). On the server this glob was added on 2026-11-09; before that
+  `rule_files` listed each file individually, so a file dropped into `rules/` was never
+  loaded. If a file is both listed explicitly and inside `rules/`, drop the explicit entry.
+  Then confirm with
+  `curl -sSG localhost:9090/api/v1/rules | python3 -m json.tool | grep -E '"name"|"health"'`:
+  a `pmoney-external-apis` group with `PmoneyExternalApiErrors` and
+  `PmoneyExternalApiHighErrorRate`, both `"health": "ok"`. The scrape job:
 
   ```yaml
   scrape_configs:
@@ -258,7 +266,8 @@ Set up the same way as travelCompantion (fleet spec OBS-2).
         - targets: ['127.0.0.1:8001']
   ```
 
-  If it runs elsewhere, scrape `https://pmoney.hups.club/metrics` instead.
+  If it runs elsewhere, scrape `https://pmoney.hups.club/metrics` instead (`scheme: https`,
+  target `pmoney.hups.club`), which is also how it is set up on the server today.
 - **What is not counted.** The counters live in the web process. The timer jobs (the
   10-minute sheet sync, the weekly allowance, the digest email) run in their own
   processes, which serve no `/metrics`, so calls made there are invisible. A sheet sync

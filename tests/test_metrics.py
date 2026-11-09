@@ -189,3 +189,13 @@ def test_metrics_is_not_shadowed_by_the_spa_catch_all(tmp_path, monkeypatch):
     response = TestClient(main.create_app()).get("/metrics")
     assert "SPA SHELL" not in response.text
     assert "pmoney_external_requests_total" in response.text
+
+
+def test_alerts_are_named_and_labelled_for_this_app():
+    """travelCompantion's rules use the same alert names and also count
+    `google_oauth`. Without a unique name and an app label, the two apps' alerts
+    would share one identity in Alertmanager and overwrite each other."""
+    text = RULES.read_text()
+    names = re.findall(r"- alert: (\w+)", text)
+    assert names and all(name.startswith("Pmoney") for name in names), names
+    assert len(re.findall(r"^\s+app: pmoney$", text, re.M)) == len(names)
