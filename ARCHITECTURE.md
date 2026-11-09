@@ -71,6 +71,7 @@ scripts/
   sync_sheet.py              # timer (every 10 min): Google Sheet ledger catch-up
   check_config.py            # deploy preflight: refuse a config the app won't start with
   smoke_check.sh             # post-deploy check; deploy.sh fails if it fails
+  add_backup_reader.sh       # app server: read-only rsync key for the off-box backup pull
   seed_dev_data.py           # optional local fixtures (users, chores, claims)
 frontend/
   src/

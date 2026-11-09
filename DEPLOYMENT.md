@@ -224,6 +224,133 @@ failed or was skipped — check `/var/log/pocketMoney-deploy.log` and rerun
 fails if `pg_dump` fails, and the smoke check warns when the newest dump
 is over 36h old.
 
-**Still TODO (fleet spec DEP-6): an off-box copy.** The dumps live on the
-same VM as the database, so losing the VM loses both. Pick a destination
-(another host, object storage) and add a step after the dump.
+A separate backup server *pulls* them off-box (below).
+
+## Off-box backups
+
+`/var/backups/pmoney` is on the same disk as the app, so it doesn't survive losing the
+server (fleet spec DEP-6). A separate, locked-down **backup server** *pulls* a copy over
+rsync/ssh, the same design as recipeFlood's and travelCompantion's.
+
+```
+ app server (camelidcastle)                    backup server
+ ──────────────────────────                    ─────────────
+ 02:30 pmoney-backup                           every 6 h (:35)  pmoney-pull-backup.timer
+   └ /var/backups/pmoney/pmoney-<1-7>.sql.gz                    └ pmoney-pull-backup.sh
+ user pmbackup (read-only key)  ◄──────────── rsync over ssh (key + pinned host key)
+ forced: rrsync -ro /var/backups/pmoney               └ verify · file dated copies · freshness · prune
+```
+
+**Pull, not push**: the app server holds no credentials for the backup server, so a compromised
+app can't reach or delete the copies. The app-side key can only run a read-only rsync inside
+`/var/backups/pmoney` (`rrsync -ro`): no shell, no writes, no other paths. That puts `.env`
+out of its reach by path, and `add_backup_reader.sh` also checks the user can't read it.
+
+**What it keeps.** The app's dumps are named by weekday and overwritten a week later, so the
+pull files every new one under a dated name (`dumps/pmoney-YYYYMMDD-HHMMSS.sql.gz`) and keeps
+90 days of them, never fewer than 7. The app writes each dump to a `.tmp` file and renames it,
+so a pull never sees a half-written one and a failed dump never replaces the last good one.
+
+**Not copied, on purpose: `.env`.** A restored database works without it, but the server
+doesn't: it holds `JWT_SECRET`, the Google OAuth client, the SMTP password and the Sheet
+settings. Keep a copy of `.env` (and `google-service-account.json`) in your password manager.
+
+### Setup
+
+**1. Backup server** (as root, from a checkout of this repo):
+
+```bash
+sudo deploy/backup-server/install.sh
+```
+
+Creates user `pmpull`, an ed25519 key, `/etc/pmoney-pull-backup.conf`, the backup directory
+`/lklBackup/sites_apps/pocketMoney`, the service and the timer (enabled). It prints the next
+steps with your public key filled in.
+
+**2. App server** (as root): authorise that key. `--from` restricts it to the backup server's IP.
+
+```bash
+echo '<the public key install.sh printed>' | sudo scripts/add_backup_reader.sh --from <backup-server-ip> -
+```
+
+This creates the login-less `pmbackup` user, installs the key as
+`restrict,from="…",command="rrsync -ro /var/backups/pmoney"`, then checks that `pmbackup`
+**can** read every dump and **cannot** read `/opt/pocketMoney/.env`. Needs the `rsync` package
+(it provides `rrsync`; a full `deploy.sh` installs it), and sshd must allow the user
+(`AllowUsers`, if you use it).
+
+**3. Backup server**: check `SRC_HOST=pmbackup@<app-host>` in `/etc/pmoney-pull-backup.conf`
+and pin the app server's host key. The script uses `StrictHostKeyChecking=yes`, so an unknown or
+changed key fails the run instead of prompting. Compare the fingerprint from
+`ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` on the app server with what you scan here:
+
+```bash
+sudo -u pmpull ssh-keyscan -t ed25519 <app-host> | sudo -u pmpull tee -a /var/lib/pmoney-backup/.ssh/known_hosts
+sudo -u pmpull ssh-keygen -lf /var/lib/pmoney-backup/.ssh/known_hosts
+```
+
+**4. First run, through systemd** (not only by hand: the unit is sandboxed, and a path that works
+by hand can be read-only under it):
+
+```bash
+sudo systemctl start pmoney-pull-backup.service
+journalctl -u pmoney-pull-backup.service -n 20   # expect "✓ ok: N dump(s), newest Xh old; …"
+systemctl list-timers pmoney-pull-backup.timer
+```
+
+The copies go to **`/lklBackup/sites_apps/pocketMoney`** on the backup disk. The unit sets that
+path once as `Environment=DEST=`, next to the two lines that make it work under the sandbox:
+`ReadWritePaths=` (without it `ProtectSystem=strict` makes the disk read-only, so a pull that
+works by hand fails under systemd) and `RequiresMountsFor=` (if the disk isn't mounted the pull
+fails instead of filling the root filesystem). `install.sh` creates the directory, owned by
+`pmpull` with mode 0700, and refuses if `/lklBackup/sites_apps` doesn't exist. To move the
+copies, change all three lines together.
+
+### What a failed run means
+
+The unit exits non-zero (and shows in `systemctl --failed`) when:
+
+| Message | Cause |
+|---|---|
+| `rsync of the backups failed (exit …)` | ssh/key/host-key/permission problem; the line above it says which |
+| `not a complete backup: …` | A file failed `gzip -t` or has no `dump complete` marker. It's moved to `quarantine/` and fetched again next run |
+| `… differs from the copy already filed …` | A file changed without its timestamp changing. Look before trusting either copy |
+| `newest database dump is Nh old` | **The app server's own backup stopped.** Check `systemctl status pmoney-backup` there |
+| `… has never run` | The app server has no dump at all |
+
+For an alert, point `OnFailure=` in the service at a unit that mails or pushes you (there is a
+commented line for it). Without one, check `systemctl --failed` now and then, or look at
+`/lklBackup/sites_apps/pocketMoney/last-success`, which holds the time of the last good pull.
+
+### Restore drill (do this once, then yearly)
+
+A backup you haven't restored is only a hope. On any machine with Postgres client tools:
+
+```bash
+B=/lklBackup/sites_apps/pocketMoney
+gunzip -c "$B"/dumps/pmoney-<newest>.sql.gz | head -20                # readable?
+createuser pocketMoney          # the dump's OWNER TO lines need it; skip if it exists
+createdb pm_restore_test
+gunzip -c "$B"/dumps/pmoney-<newest>.sql.gz | psql -q -v ON_ERROR_STOP=1 pm_restore_test
+psql pm_restore_test -c 'select count(*) from claim'
+psql pm_restore_test -c 'select version_num from alembic_version'   # the schema revision
+dropdb pm_restore_test
+```
+
+Without the `pocketMoney` role, `ON_ERROR_STOP` stops at the first `OWNER TO` line and restores
+nothing. Also confirm you can find `.env` in your password manager.
+
+### Rotating the key / removing access
+
+Re-run `add_backup_reader.sh` with the new public key (it replaces the old `pm-offsite-backup`
+line), or delete that line from `/var/lib/pmbackup/.ssh/authorized_keys` to cut access at once.
+
+### Tests
+
+`tests/test_pull_backup.py` runs the real script and rsync against a local stand-in for the
+backup directory: the pull, the dated history (including a weekday file overwritten at the
+source), verification and recovery after a quarantined file, the freshness check, retention,
+and the key builder's refusal of injected options. Two tests route the pull through the real
+`rrsync -ro` forced command, which allows reads under the root and refuses a path outside it, a
+push and a shell. Not covered: ssh itself and running under systemd. The first run in step 4 is
+that check.

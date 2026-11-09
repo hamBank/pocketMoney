@@ -1,0 +1,15 @@
+# /etc/systemd/system/pmoney-pull-backup.timer   (on the BACKUP server)
+# The app server dumps the database at 02:30, in ITS local time. Pulling every six hours
+# means a pull lands within six hours of that whatever zone either server is in; a pull
+# with nothing new copies nothing. Minute :35 keeps it off recipeFlood's pull (:20). Persistent=true runs
+# a pull missed while this server was off.
+[Unit]
+Description=Pull Pocket Money backups every six hours
+
+[Timer]
+OnCalendar=*-*-* 00/6:35:00
+Persistent=true
+RandomizedDelaySec=600
+
+[Install]
+WantedBy=timers.target
