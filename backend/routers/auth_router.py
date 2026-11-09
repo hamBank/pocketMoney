@@ -6,6 +6,7 @@ from ..auth import (
     allowed_emails,
     create_access_token,
     get_current_user,
+    may_sign_in,
     verify_google_token,
 )
 from ..config import settings
@@ -61,7 +62,7 @@ def google_login(body: GoogleLoginRequest, session: Session = Depends(get_sessio
             is not None
         )
         user = User(email=email, role=UserRole.user if has_admin else UserRole.admin)
-    elif not user.is_active:
+    elif not may_sign_in(user):
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Account is deactivated")
 
     user.google_sub = claims["sub"]
