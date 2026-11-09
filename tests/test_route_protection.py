@@ -11,6 +11,7 @@ PUBLIC = {
     ("POST", "/deploy"),  # GitHub webhook, authenticated by its HMAC signature
     ("GET", "/auth/config"),  # client bootstrap, before sign-in
     ("POST", "/auth/google"),  # sign-in itself
+    ("GET", "/metrics"),  # Prometheus scrape: no JWT, aggregate counts only, no PII (as in travelCompantion)
 }
 
 

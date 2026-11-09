@@ -231,6 +231,43 @@ changes. If `build_sha` differs from `backend_sha`, the frontend build
 failed or was skipped — check `/var/log/pocketMoney-deploy.log` and rerun
 `sudo ./deploy.sh --update`.
 
+## Monitoring (Prometheus)
+
+Set up the same way as travelCompantion (fleet spec OBS-2).
+
+- `GET /metrics` serves `pmoney_external_requests_total{service, status}` (`status` is
+  `success` or `error`; `service` is `google_sheets`, `google_oauth` or `smtp`). It is
+  unauthenticated, like `/health`: a scraper carries no JWT and the content is aggregate
+  counts with no personal data.
+- `docs/prometheus-alerts.yml` holds the alert rules. **It does not install itself.** After
+  any change, on the Prometheus host:
+
+  ```bash
+  sudo cp docs/prometheus-alerts.yml /etc/prometheus/rules/pmoney.yml
+  sudo promtool check rules /etc/prometheus/rules/pmoney.yml
+  sudo systemctl reload prometheus
+  ```
+
+  `prometheus.yml` needs `rule_files: [/etc/prometheus/rules/*.yml]` (travelCompantion's
+  already has it) and a scrape job for this app. If Prometheus runs on this box:
+
+  ```yaml
+  scrape_configs:
+    - job_name: pmoney
+      static_configs:
+        - targets: ['127.0.0.1:8001']
+  ```
+
+  If it runs elsewhere, scrape `https://pmoney.hups.club/metrics` instead.
+- **What is not counted.** The counters live in the web process. The timer jobs (the
+  10-minute sheet sync, the weekly allowance, the digest email) run in their own
+  processes, which serve no `/metrics`, so calls made there are invisible. A sheet sync
+  that fails only from its timer will not trip these alerts. The same limit applies to
+  travelCompantion's cron jobs. See the closing section of `docs/plans/obs-2-metrics.md`
+  for the options if that matters.
+- Alerts that don't fire when you expect them to: check the rules file was actually copied
+  and reloaded, and that Prometheus shows the `pmoney` target as up.
+
 ## Backups
 
 `pmoney-backup.timer` dumps the database nightly at 02:30 to

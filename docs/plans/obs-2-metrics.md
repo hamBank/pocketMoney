@@ -1,6 +1,7 @@
 # Plan: `/metrics` and an alert-rules file (fleet spec OBS-2)
 
-Status: **plan only, nothing built.** Rule (SHOULD): `/metrics` (Prometheus) with a
+Status: **built, in the travelCompantion shape (see "Outcome" at the end).** The sections between are the
+original plan. Rule (SHOULD): `/metrics` (Prometheus) with a
 `<app>_external_requests_total{service=…}` counter, and an alert-rules file in `docs/`.
 pocketMoney is ✗ today; travelCompantion has it.
 
@@ -90,3 +91,27 @@ or an Apache change.
 ## Unverified
 
 Google's quota figure (above), TC's conventions, and whether a scraper exists.
+
+## Outcome (2026-11-09)
+
+Built by copying travelCompantion's setup, which answered the open decisions:
+
+- **Prometheus exists** (travelCompantion's). Rules are copied by hand into
+  `/etc/prometheus/rules/`; the scrape config is not in either repo.
+- **Names:** `pmoney_external_requests_total{service, status}`. The label is `status`
+  (`success | error`), matching travelCompantion's, not the `outcome` proposed above.
+- **`/metrics` is unauthenticated**, like travelCompantion's, so there is no `METRICS_TOKEN`.
+  `tests/test_route_protection.py` lists it as public, with the reason.
+- **Counters are in-process** (`prometheus_client`), not the database table proposed above.
+- **One deliberate difference:** a `ValueError` from Google sign-in (a bad or expired user
+  token) counts as a successful call to Google. travelCompantion counts every exception as
+  an error, which would page on someone mistyping a login.
+- Only `docs/prometheus-alerts.yml` (two rules) was copied; no Grafana dashboard and no
+  `prometheus-fastapi-instrumentator` HTTP metrics.
+
+**Still open: the blind spot this plan identified.** Because the counters are per-process,
+the timer jobs are not counted: the every-10-minute sheet sync (the bulk of the Sheets traffic),
+the weekly allowance and the digest. A sync that fails only from its timer trips nothing here.
+travelCompantion has the same limit. If that matters, the options are the database-backed
+counter described under "Design" above, or a heartbeat per job (phase 4).
+

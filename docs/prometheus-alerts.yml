@@ -1,0 +1,61 @@
+# Prometheus alerting rules for Pocket Money (fleet spec OBS-2).
+#
+# Canonical copy of the alert rules, in the same layout as travelCompantion's
+# docs/prometheus-alerts.yml. It does NOT install itself: the Prometheus on the
+# server loads it through a rule_files entry, so after any change:
+#
+#   sudo cp docs/prometheus-alerts.yml /etc/prometheus/rules/pmoney.yml
+#   # prometheus.yml must contain:
+#   #   rule_files:
+#   #     - /etc/prometheus/rules/*.yml
+#   sudo promtool check rules /etc/prometheus/rules/pmoney.yml
+#   sudo systemctl reload prometheus
+#
+# If an alert doesn't fire when you expect it to, check that this was done: the
+# file existing in the repo doesn't mean Prometheus has loaded it.
+#
+# Coverage limit: pmoney_external_requests_total is counted inside the web
+# process only. The timer jobs (the 10-minute sheet sync, the weekly allowance,
+# the digest email) run in their own processes and are NOT counted, so a sync
+# that fails only from its timer will not trip these. See backend/metrics.py.
+
+groups:
+  - name: pmoney-external-apis
+    rules:
+      # Any failed outbound call is worth knowing about: the Sheets mirror runs
+      # as a background task and the app carries on, so a failure never shows in
+      # HTTP status codes or the UI.
+      # pmoney_external_requests_total{service,status} is incremented by
+      # backend/metrics.py:record_external_call around every outbound call
+      # (google_sheets, google_oauth, smtp).
+      - alert: ExternalApiErrors
+        expr: sum by (service) (increase(pmoney_external_requests_total{status="error"}[15m])) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "External API errors: {{ $labels.service }}"
+          description: >-
+            {{ $value | printf "%.0f" }} failed call(s) to {{ $labels.service }}
+            in the last 15 minutes. Details are logged at warning level by
+            pmoney.external in the app log.
+
+      # Sustained high error *ratio* for a service that is actually being
+      # called: a stronger signal than the count above, which a single blip
+      # trips. It only evaluates when there is traffic in the window, so an idle
+      # service never divides by zero or false-alarms.
+      - alert: ExternalApiHighErrorRate
+        expr: >-
+          sum by (service) (rate(pmoney_external_requests_total{status="error"}[15m]))
+          /
+          sum by (service) (rate(pmoney_external_requests_total[15m]))
+          > 0.25
+        for: 15m
+        labels:
+          severity: critical
+        annotations:
+          summary: "External API failing hard: {{ $labels.service }}"
+          description: >-
+            More than 25% of calls to {{ $labels.service }} have failed for
+            15+ minutes. Whatever depends on it (the Google Sheet mirror,
+            sign-in, the digest email) is degraded right now.

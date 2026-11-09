@@ -11,6 +11,7 @@ google-auth>=2.30,<3
 requests>=2.31,<3
 psycopg[binary]>=3.2,<4  # fleet spec STK-6; URLs say postgresql+psycopg://
 PyJWT>=2.9,<3
+prometheus-client>=0.20,<1  # fleet spec OBS-2: /metrics
 tzdata>=2024.1  # IANA zones incl. aliases like Australia/Canberra, whatever the OS ships
 pytest>=8,<10
 httpx>=0.27,<0.29
