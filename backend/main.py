@@ -72,10 +72,18 @@ def create_app() -> FastAPI:
 
         @app.get("/{spa_path:path}", include_in_schema=False)
         def spa(spa_path: str):
-            candidate = STATIC_DIR / spa_path
-            if spa_path and candidate.is_file():
+            # The path is attacker-controlled and arrives percent-decoded, so
+            # "../" can climb out of STATIC_DIR. Serve only files that resolve
+            # to somewhere inside it; everything else gets the app shell.
+            root = STATIC_DIR.resolve()
+            try:
+                candidate = (root / spa_path).resolve()
+                inside = spa_path and candidate.is_relative_to(root) and candidate.is_file()
+            except (OSError, ValueError):  # e.g. an embedded NUL byte
+                inside = False
+            if inside:
                 return FileResponse(candidate)
-            return FileResponse(STATIC_DIR / "index.html")
+            return FileResponse(root / "index.html")
 
     return app
 
