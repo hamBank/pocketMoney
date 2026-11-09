@@ -9,6 +9,7 @@ from sqlmodel import Session, select
 
 from .config import settings
 from .database import get_session
+from .metrics import record_external_call
 from .models import User, UserRole, utcnow
 
 TOKEN_LIFETIME = timedelta(days=30)
@@ -23,9 +24,20 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 def verify_google_token(credential: str) -> dict:
     """Verify a Google ID token and return its claims. Raises ValueError."""
-    return google_id_token.verify_oauth2_token(
-        credential, google_requests.Request(), settings.google_client_id
-    )
+    try:
+        claims = google_id_token.verify_oauth2_token(
+            credential, google_requests.Request(), settings.google_client_id
+        )
+    except ValueError:
+        # A bad or expired token is the user's problem, not Google's: the call to
+        # Google (fetching its signing certs) worked, so it is not an upstream error.
+        record_external_call("google_oauth", ok=True)
+        raise
+    except Exception as exc:  # e.g. TransportError fetching Google's certs
+        record_external_call("google_oauth", ok=False, error=type(exc).__name__)
+        raise
+    record_external_call("google_oauth", ok=True)
+    return claims
 
 
 def allowed_emails() -> set[str]:

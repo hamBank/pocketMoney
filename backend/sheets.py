@@ -12,6 +12,8 @@ tab), never by title, so renaming a tab in the Sheets UI is harmless.
 from dataclasses import dataclass, field
 from urllib.parse import quote
 
+from .metrics import record_external_call
+
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 API = "https://sheets.googleapis.com/v4/spreadsheets"
 
@@ -52,9 +54,16 @@ class GoogleSheetsClient:
 
     def _call(self, method: str, path: str, **kwargs) -> dict:
         url = f"{API}/{self.spreadsheet_id}{path}"
-        response = self.session.request(method, url, timeout=30, **kwargs)
+        try:
+            response = self.session.request(method, url, timeout=30, **kwargs)
+        except Exception as exc:  # network, TLS, auth refresh: the call never completed
+            record_external_call("google_sheets", ok=False, error=type(exc).__name__)
+            raise
         if response.status_code >= 400:
+            # Status only: the path names tabs (children), which stay out of the log line.
+            record_external_call("google_sheets", ok=False, error=f"{method} HTTP {response.status_code}")
             raise SheetsError(f"{method} {path}: {response.status_code} {response.text[:500]}")
+        record_external_call("google_sheets", ok=True)
         return response.json() if response.content else {}
 
     def _batch_update(self, requests: list[dict]) -> dict:

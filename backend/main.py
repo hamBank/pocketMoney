@@ -4,10 +4,12 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.responses import FileResponse
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from sqlalchemy import text
 
+from . import metrics as _metrics  # noqa: F401  (registers the pmoney_* counters at startup)
 from .config import settings
 from .database import engine
 from .routers import auth_router, chores, claims, transactions, users
@@ -34,6 +36,14 @@ def create_app() -> FastAPI:
             "built_at": frontend["built_at"],
             "started_at": STARTED_AT,
         }
+
+    @app.get("/metrics")
+    def prometheus_metrics():
+        """Prometheus scrape endpoint (fleet spec OBS-2). Unauthenticated, like
+        travelCompantion's and like /health: a scraper carries no JWT, and the
+        content is aggregate counts with no personal data. It stays in the
+        OpenAPI schema so tests/test_route_protection.py lists it as public."""
+        return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
     @app.post("/deploy")
     async def deploy(request: Request):

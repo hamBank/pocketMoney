@@ -56,6 +56,14 @@ Backups: `pmoney-backup.timer` dumps nightly to `/var/backups/pmoney`; a separat
 pulls them read-only (`deploy/backup-server/`, `scripts/add_backup_reader.sh`, DEPLOYMENT.md
 "Off-box backups"). The app server holds no credentials for the backup server.
 
+## Monitoring
+`/metrics` serves `pmoney_external_requests_total{service,status}` (`backend/metrics.py`,
+`record_external_call` around every outbound call: Sheets, Google sign-in, SMTP). Counters are
+per-process, so the timer jobs' calls are not counted. `docs/prometheus-alerts.yml` is the
+canonical alert-rules file and **does not self-install**: copy it to
+`/etc/prometheus/rules/pmoney.yml`, `promtool check rules`, reload Prometheus (DEPLOYMENT.md
+"Monitoring"). Add a new outbound integration? Wrap it in `record_external_call` too.
+
 ## Git workflow
 Branch from fresh `origin/main` → run both test suites → PR (non-draft) → CI green →
 squash-merge → the webhook deploys → verify `/health` `backend_sha` and `build_sha`. After

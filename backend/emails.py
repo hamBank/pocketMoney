@@ -9,6 +9,7 @@ import smtplib
 from email.message import EmailMessage
 
 from .config import settings
+from .metrics import record_external_call
 
 
 def send_email(to: list[str], subject: str, body: str) -> None:
@@ -20,7 +21,13 @@ def send_email(to: list[str], subject: str, body: str) -> None:
     message["To"] = ", ".join(to)
     message["Subject"] = subject
     message.set_content(body)
-    with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as smtp:
-        smtp.starttls()
-        smtp.login(settings.smtp_user, settings.smtp_password)
-        smtp.send_message(message)
+    try:
+        with smtplib.SMTP(settings.smtp_host, settings.smtp_port) as smtp:
+            smtp.starttls()
+            smtp.login(settings.smtp_user, settings.smtp_password)
+            smtp.send_message(message)
+    except Exception as exc:
+        # Class name only: SMTP error messages can echo recipient addresses.
+        record_external_call("smtp", ok=False, error=type(exc).__name__)
+        raise
+    record_external_call("smtp", ok=True)
