@@ -4,7 +4,8 @@
 #   sudo ./deploy.sh            # full provision (packages, user, db, units, vhost)
 #   sudo ./deploy.sh --update   # code update only (used by the webhook path unit)
 #
-# The repo is private and cloned over SSH with a read-only deploy key:
+# The repo is public (since 2026-11-09, for auto-merge) but still cloned over
+# SSH with a read-only deploy key, so nothing changes if it goes private again:
 #   sudo -u pocketMoney ssh-keygen -t ed25519 -N "" -f /home/pocketMoney/.ssh/id_ed25519
 # and add the .pub as a Deploy Key (no write access) on the GitHub repo
 # BEFORE the first run.
