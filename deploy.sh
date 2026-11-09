@@ -21,7 +21,12 @@ APP_DIR=/opt/pocketMoney
 REPO_URL=git@github.com:hamBank/pocketMoney.git
 APP_USER=pocketMoney
 SERVICE=pmoney
-LOG=/var/log/pocketMoney-deploy.log
+# The DEPLOY_* overrides exist so tests/test_deploy_lock.py can run the lock and the
+# trigger handling against temp files; production uses the defaults.
+LOG=${DEPLOY_LOG:-/var/log/pocketMoney-deploy.log}
+TRIGGER_FILE=${DEPLOY_TRIGGER_FILE:-$APP_DIR/.deploy-trigger}
+LOCK_FILE=${DEPLOY_LOCK_FILE:-/var/lock/pmoney-deploy.lock}
+LOCK_WAIT=${DEPLOY_LOCK_WAIT:-1800}
 
 log() { echo "[$(date -Is)] $*" | tee -a "$LOG"; }
 # Fleet spec DEP-1: log where a failure happened. -E makes the trap fire inside
@@ -30,6 +35,41 @@ trap 'rc=$?; log "ERROR: ${BASH_SOURCE[0]}:${LINENO}: \`${BASH_COMMAND}\` exited
 
 # Scheduled jobs (fleet spec DEP-5): deploy/pmoney-<job>.{service,timer}.
 TIMERS=(pmoney-digest pmoney-allowance pmoney-sheet-sync pmoney-backup)
+
+# Fleet spec DEP-3. pmoney-deploy.path fires while the trigger file exists
+# (PathExists), so a failed deploy would re-fire forever unless the file is
+# deleted FIRST. Deleting it before the fetch is safe: anything pushed before
+# this point is in the fetch, and a push that lands later re-creates the file,
+# which makes the path unit start the next deploy once this one has finished.
+consume_trigger() {
+    if [ -e "$TRIGGER_FILE" ]; then
+        rm -f "$TRIGGER_FILE"
+        log "consumed $TRIGGER_FILE"
+    fi
+}
+
+# One deploy at a time, including a hand-run `deploy.sh` against a webhook one.
+# A second run WAITS (up to LOCK_WAIT seconds) instead of skipping: it has
+# already consumed its trigger, so skipping would drop that push, and leaving
+# the trigger in place would spin the path unit. The wait ends with a fresh
+# fetch, so nothing is lost. Timing out is a loud failure.
+acquire_deploy_lock() {
+    exec 9>"$LOCK_FILE"
+    if ! flock -n 9; then
+        log "another deploy is running; waiting up to ${LOCK_WAIT}s for it"
+        if ! flock -w "$LOCK_WAIT" 9; then
+            log "ERROR: still locked after ${LOCK_WAIT}s; giving up"
+            exit 1
+        fi
+        log "lock acquired"
+    fi
+}
+
+run_update() {
+    consume_trigger
+    acquire_deploy_lock
+    update_code
+}
 
 update_code() {
     log "updating code"
@@ -124,7 +164,10 @@ provision() {
     fi
 
     log "deploy trigger + systemd units"
-    sudo -u "$APP_USER" touch "$APP_DIR/.deploy-trigger"
+    # The path unit fires while this file exists (DEP-3), so a leftover one would
+    # start a pointless deploy the moment the unit is (re)started below. The
+    # webhook creates it on the next push.
+    rm -f "$TRIGGER_FILE"
     cp "$APP_DIR"/deploy/pmoney.service /etc/systemd/system/"$SERVICE".service
     cp "$APP_DIR"/deploy/pmoney-deploy.service /etc/systemd/system/pmoney-deploy.service
     cp "$APP_DIR"/deploy/pmoney-deploy.path /etc/systemd/system/pmoney-deploy.path
@@ -135,6 +178,9 @@ provision() {
     done
     systemctl daemon-reload
     systemctl enable "$SERVICE" pmoney-deploy.path
+    # Pick up a changed pmoney-deploy.path (daemon-reload alone keeps the old
+    # watch). Safe here: a full provision runs from a shell, not from the unit.
+    systemctl try-restart pmoney-deploy.path
 
     log "apache vhost"
     a2enmod -q proxy proxy_http
@@ -170,8 +216,13 @@ provision() {
     log "=== provision done — see header of deploy.sh for the remaining manual steps ==="
 }
 
-if [ "${1:-}" = "--update" ]; then
-    update_code
-else
-    provision
+# Skipped when this file is sourced, so tests/test_deploy_lock.py can call the
+# functions above without starting a deploy.
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+    if [ "${1:-}" = "--update" ]; then
+        run_update
+    else
+        acquire_deploy_lock
+        provision
+    fi
 fi

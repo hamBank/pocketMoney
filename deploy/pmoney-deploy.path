@@ -2,7 +2,12 @@
 Description=Watch .deploy-trigger and redeploy Pocket Money
 
 [Path]
-PathChanged=/opt/pocketMoney/.deploy-trigger
+# Fleet spec DEP-3. Fires whenever the file exists, and the file is created by
+# the webhook (backend/main.py). deploy.sh --update deletes it as its first step,
+# so a failed deploy cannot re-fire forever, and a push that lands while a deploy
+# is running re-creates it and starts the next deploy as soon as this one ends.
+# (PathChanged, used before, only fires on a change, so that push was missed.)
+PathExists=/opt/pocketMoney/.deploy-trigger
 
 [Install]
 WantedBy=multi-user.target

@@ -78,11 +78,25 @@ The built `backend/static/` is produced on the server at deploy time — it is
 ## Auto-redeploy webhook
 
 A push to `main` → GitHub webhook `POST /deploy` (HMAC-signed with
-`DEPLOY_SECRET`) → app touches `.deploy-trigger` → systemd **path unit**
-watches that file and runs `deploy.sh --update`.
+`DEPLOY_SECRET`) → app creates `.deploy-trigger` → systemd **path unit**
+(`PathExists`) starts `deploy.sh --update`.
 
 The path-unit indirection means the deploy runs with root privileges without
 the web app itself needing any.
+
+How overlapping and failing deploys are handled (fleet spec DEP-3):
+
+- `deploy.sh --update` **deletes `.deploy-trigger` first**. The path unit fires
+  while the file exists, so a deploy that fails halfway cannot re-fire forever.
+- A push that lands **during** a deploy re-creates the file, and the path unit
+  starts the next deploy as soon as the running one ends. Nothing is dropped.
+- A second `deploy.sh` (for example one run by hand while a webhook deploy is in
+  flight) takes `/var/lock/pmoney-deploy.lock`, so it **waits** for the first
+  rather than overlapping it, for up to 30 minutes, and then fails loudly. It
+  waits instead of skipping because it has already consumed its trigger, and its
+  own fetch picks up whatever was pushed meanwhile.
+- The path unit is a systemd unit, so changing it takes a full `sudo ./deploy.sh`
+  (which also restarts it), never `--update`.
 
 ## Google OAuth setup (one-time, manual)
 
