@@ -31,8 +31,10 @@
 
 ## Repo access (deploy key)
 
-The repo is **private**; the server clones it over SSH with a read-only
-deploy key belonging to the `pocketMoney` system user:
+The repo is public (since 2026-11-09, so GitHub auto-merge is available), but
+the server still clones it over SSH with a read-only deploy key belonging to the
+`pocketMoney` system user, so nothing changes if it goes private again. Never
+commit secrets: anyone can read the repo and its history.
 
 ```bash
 sudo -u pocketMoney ssh-keygen -t ed25519 -N "" -f /home/pocketMoney/.ssh/id_ed25519
