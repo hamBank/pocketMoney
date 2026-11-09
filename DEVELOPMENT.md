@@ -66,6 +66,19 @@ cd frontend && npm run lint  # eslint — flags hook/JSX bug patterns statically
 cd frontend && npm test      # vitest — frontend/src/*.test.{js,jsx}
 ```
 
+### Pre-push hook (optional)
+
+```bash
+scripts/install-hooks.sh     # installs a git pre-push hook; re-run safely, --force replaces a foreign one
+```
+
+Before each push it runs the cheap checks (about 20 seconds): `bash -n` on the
+shell scripts, `pytest -x`, and the frontend lint and tests when
+`frontend/node_modules` exists. CI still runs everything else (Postgres,
+migrations, conformance, the build). Skip once with `git push --no-verify`, or
+skip steps with `PREPUSH_SKIP="pytest frontend"`. The checks live in
+`scripts/pre-push-checks.sh`, so editing them needs no reinstall.
+
 Write tests alongside features: claim lifecycle and ledger invariants
 (append-only, balance = sum) are the highest-value backend tests; the
 approval queue and claim flows the highest-value frontend tests.
